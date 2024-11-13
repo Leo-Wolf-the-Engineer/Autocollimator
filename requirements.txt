@@ -1,0 +1,6 @@
+#pip3 install pypylon
+pillow
+matplotlib
+numpy
+pillow
+opencv-python
