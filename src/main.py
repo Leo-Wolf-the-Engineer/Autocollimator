@@ -8,6 +8,7 @@ from PyQt5.QtGui import QPixmap, QScreen
 from pyqtgraph.exporters import ImageExporter
 import threading
 import time
+import utils
 from datetime import datetime
 
 # Constants for conversion
@@ -19,9 +20,6 @@ CONVERSION_FACTOR = PIXEL_PITCH / (2 * FOCAL_LENGTH) * 180 / np.pi * 3600  # con
 # Function to define the Gaussian curve
 def gaussian(x, amp, mean, stddev):
     return amp * np.exp(-((x - mean) ** 2) / (2 * stddev ** 2))
-
-pg.setConfigOption('background', 'w')
-pg.setConfigOption('foreground', 'k')
 
 # Initialize the camera
 camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
@@ -107,7 +105,7 @@ button_reset_y = QtWidgets.QPushButton("Reset Y Peak Position")
 button_layout.addWidget(button_reset_y)
 
 # Create a button to start averaging measurements
-button_average = QtWidgets.QPushButton("Start Averaging")
+button_average = QtWidgets.QPushButton("Take Average")
 button_layout.addWidget(button_average)
 
 # Create a text box to display averaged values
@@ -119,8 +117,9 @@ fps_display = QtWidgets.QLabel("FPS: 0")
 right_layout.addWidget(fps_display)
 
 # Create a button to save the whole window as an image
-button_save_image = QtWidgets.QPushButton("Save Window as Image")
-button_layout.addWidget(button_save_image)
+button_save_image_1 = QtWidgets.QPushButton("Save Window as Image")
+button_layout.addWidget(button_save_image_1)
+button_save_image_1.clicked.connect(lambda: utils.save_window_as_image(win,app))
 
 # Initialize data storage
 peak_x_history = []
@@ -128,7 +127,7 @@ peak_y_history = []
 zero_x = 0
 zero_y = 0
 averaging = False
-average_start_time = 0
+average_start_time = time.time_ns()
 average_x_values = []
 average_y_values = []
 
@@ -141,10 +140,9 @@ latest_peak_y = 0
 frame_count = 0
 start_time = time.time()
 
-
 # Function to grab frames and process them
 def grab_and_process():
-    global latest_frame, latest_peak_x, latest_peak_y, peak_x_history, peak_y_history, zero_x, zero_y, averaging, average_start_time, average_x_values, average_y_values, frame_count, start_time
+    global latest_frame, latest_peak_x, latest_peak_y, peak_x_history, peak_y_history, zero_x, zero_y, averaging, average_start_time, average_x_values, average_y_values, frame_count
 
     while camera.IsGrabbing():
         grabResult = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
@@ -177,8 +175,8 @@ def grab_and_process():
             print(f"Y Direction: Mean={peak_y_arcsec:.2f} arcseconds")
 
             # Store peak positions
-            peak_x_history.append(((time.time() - start_time) / 60, peak_x_arcsec))
-            peak_y_history.append(((time.time() - start_time) / 60, peak_y_arcsec))
+            peak_x_history.append(((time.time_ns()- average_start_time)/6e10, peak_x_arcsec))
+            peak_y_history.append(((time.time_ns()- average_start_time)/6e10, peak_y_arcsec))
 
             # Update the latest frame and peaks
             latest_frame = frame
@@ -205,7 +203,6 @@ def grab_and_process():
         grabResult.Release()
         time.sleep(0.005)  # Sleep for 5 milliseconds to handle high frame rate
 
-
 # Update function to update the plots
 def update_plots():
     global latest_frame, latest_peak_x, latest_peak_y, peak_x_history, peak_y_history, frame_count, start_time
@@ -222,12 +219,12 @@ def update_plots():
     # Update FPS display
     current_time = time.time()
     elapsed_time = current_time - start_time
-    if elapsed_time >= 3:
+    if elapsed_time > 3:
         fps = frame_count / elapsed_time
         fps_display.setText(f"FPS: {fps:.2f}")
         frame_count = 0
         start_time = current_time
-
+        print(frame_count)
 
 # Reset function for X peak position plot
 def reset_x_peak_position():
@@ -236,8 +233,7 @@ def reset_x_peak_position():
     peak_x_history = []
     curve_peak_x.setData(peak_x_history)
     curve_intensity_x.setData(np.zeros(width))
-    start_time = time.time()
-
+    start_time = time.time_ns()
 
 # Reset function for Y peak position plot
 def reset_y_peak_position():
@@ -246,8 +242,7 @@ def reset_y_peak_position():
     peak_y_history = []
     curve_peak_y.setData(peak_y_history)
     curve_intensity_y.setData(np.zeros(height))
-    start_time = time.time()
-
+    start_time = time.time_ns()
 
 # Start averaging measurements
 def start_averaging():
@@ -257,20 +252,10 @@ def start_averaging():
     average_x_values = []
     average_y_values = []
 
-
-# Save the whole window as an image
-def save_window_as_image(window):
-    screen = app.primaryScreen()
-    screenshot = screen.grabWindow(window.winId())
-    filename = datetime.now().strftime(f"{window.windowTitle().replace(' ', '_').lower()}_%Y%m%d_%H%M%S.png")
-    screenshot.save(filename, 'png')
-
-
 # Connect buttons to their respective functions
 button_reset_x.clicked.connect(reset_x_peak_position)
 button_reset_y.clicked.connect(reset_y_peak_position)
 button_average.clicked.connect(start_averaging)
-button_save_image.clicked.connect(lambda: save_window_as_image(win))
 
 # Start a thread for grabbing and processing frames
 thread = threading.Thread(target=grab_and_process)
@@ -333,8 +318,9 @@ button_take_measurement = QtWidgets.QPushButton("Take Measurement")
 straightness_controls_layout.addWidget(button_take_measurement)
 
 # Create a button to save the plot
-button_save_plot = QtWidgets.QPushButton("Save Plot")
-straightness_controls_layout.addWidget(button_save_plot)
+button_save_image_2 = QtWidgets.QPushButton("Save Plot")
+straightness_controls_layout.addWidget(button_save_image_2)
+button_save_image_2.clicked.connect(lambda: utils.save_window_as_image(win2,app))
 
 # Create a button to clear all measured values
 button_clear_values = QtWidgets.QPushButton("Clear All Values")
@@ -355,7 +341,6 @@ straightness_controls_layout.addWidget(min_max_display_y)
 straightness_measurements_x = []
 straightness_measurements_y = []
 current_position = 1
-
 
 # Function to take a straightness measurement
 def take_measurement():
@@ -425,14 +410,13 @@ def take_measurement():
 
 
 # Function to save the plot
-def save_plot():
-    exporter_x = ImageExporter(plot_straightness_x.plotItem)
-    filename_x = datetime.now().strftime("straightness_x_live_%Y%m%d_%H%M%S.png")
-    exporter_x.export(filename_x)
-
-    exporter_y = ImageExporter(plot_straightness_y.plotItem)
-    filename_y = datetime.now().strftime("straightness_y_live_%Y%m%d_%H%M%S.png")
-    exporter_y.export(filename_y)
+#def save_plot():
+#    exporter_x = ImageExporter(plot_straightness_x.plotItem)
+#    filename_x = datetime.now().strftime("straightness_x_live_%Y%m%d_%H%M%S.png")
+#    exporter_x.export(filename_x)
+#    exporter_y = ImageExporter(plot_straightness_y.plotItem)
+#    filename_y = datetime.now().strftime("straightness_y_live_%Y%m%d_%H%M%S.png")
+#    exporter_y.export(filename_y)
 
 # Function to clear all measured values
 def clear_all_values():
@@ -452,9 +436,7 @@ def clear_all_values():
 
 # Connect buttons to their respective functions
 button_take_measurement.clicked.connect(take_measurement)
-button_save_plot.clicked.connect(save_plot)
 button_clear_values.clicked.connect(clear_all_values)
-button_save_image.clicked.connect(lambda: save_window_as_image(win2))
 
 # Show both windows
 win.show()
