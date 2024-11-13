@@ -37,45 +37,53 @@ win = QtWidgets.QMainWindow()
 win.setWindowTitle("Autocollimator live")
 central_widget = QtWidgets.QWidget()
 win.setCentralWidget(central_widget)
-layout = QtWidgets.QVBoxLayout()
-central_widget.setLayout(layout)
+main_layout = QtWidgets.QHBoxLayout()
+central_widget.setLayout(main_layout)
+
+# Create a vertical layout for the left side (frame and intensity distributions)
+left_layout = QtWidgets.QVBoxLayout()
+main_layout.addLayout(left_layout)
 
 # Create a plot widget for the current frame
 plot_frame = pg.PlotWidget(title="Current Frame")
 plot_frame.setBackground('k')
 img_item = pg.ImageItem()
 plot_frame.addItem(img_item)
-layout.addWidget(plot_frame)
+left_layout.addWidget(plot_frame)
 
 # Create a plot widget for intensity distribution in X direction
 plot_intensity_x = pg.PlotWidget(title="Intensity Distribution in X Direction")
 plot_intensity_x.setBackground('k')
 curve_intensity_x = plot_intensity_x.plot(pen='y')
 peak_line_x = plot_intensity_x.addLine(x=0, pen=pg.mkPen('r', style=QtCore.Qt.DashLine))
-layout.addWidget(plot_intensity_x)
+left_layout.addWidget(plot_intensity_x)
 
 # Create a plot widget for intensity distribution in Y direction
 plot_intensity_y = pg.PlotWidget(title="Intensity Distribution in Y Direction")
 plot_intensity_y.setBackground('k')
 curve_intensity_y = plot_intensity_y.plot(pen='y')
 peak_line_y = plot_intensity_y.addLine(x=0, pen=pg.mkPen('r', style=QtCore.Qt.DashLine))
-layout.addWidget(plot_intensity_y)
+left_layout.addWidget(plot_intensity_y)
+
+# Create a vertical layout for the right side (peak positions and buttons)
+right_layout = QtWidgets.QVBoxLayout()
+main_layout.addLayout(right_layout)
 
 # Create a plot widget for peak position in X direction
 plot_peak_x = pg.PlotWidget(title="Peak Position in X Direction")
 plot_peak_x.setBackground('k')
 curve_peak_x = plot_peak_x.plot(pen='y')
-layout.addWidget(plot_peak_x)
+right_layout.addWidget(plot_peak_x)
 
 # Create a plot widget for peak position in Y direction
 plot_peak_y = pg.PlotWidget(title="Peak Position in Y Direction")
 plot_peak_y.setBackground('k')
 curve_peak_y = plot_peak_y.plot(pen='y')
-layout.addWidget(plot_peak_y)
+right_layout.addWidget(plot_peak_y)
 
 # Create a horizontal layout for the buttons
 button_layout = QtWidgets.QHBoxLayout()
-layout.addLayout(button_layout)
+right_layout.addLayout(button_layout)
 
 # Create a button to zero peak position values and reset the X plot
 button_reset_x = QtWidgets.QPushButton("Reset X Peak Position")
@@ -85,11 +93,23 @@ button_layout.addWidget(button_reset_x)
 button_reset_y = QtWidgets.QPushButton("Reset Y Peak Position")
 button_layout.addWidget(button_reset_y)
 
+# Create a button to start averaging measurements
+button_average = QtWidgets.QPushButton("Start Averaging")
+button_layout.addWidget(button_average)
+
+# Create a text box to display averaged values
+average_display = QtWidgets.QLabel("Averaged Values: X = 0.0, Y = 0.0")
+right_layout.addWidget(average_display)
+
 # Initialize data storage
 peak_x_history = []
 peak_y_history = []
 zero_x = 0
 zero_y = 0
+averaging = False
+average_start_time = 0
+average_x_values = []
+average_y_values = []
 
 # Variables to store the latest frame and peaks
 latest_frame = None
@@ -99,7 +119,7 @@ latest_peak_y = 0
 
 # Function to grab frames and process them
 def grab_and_process():
-    global latest_frame, latest_peak_x, latest_peak_y, peak_x_history, peak_y_history, zero_x, zero_y
+    global latest_frame, latest_peak_x, latest_peak_y, peak_x_history, peak_y_history, zero_x, zero_y, averaging, average_start_time, average_x_values, average_y_values
 
     while camera.IsGrabbing():
         grabResult = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
@@ -116,20 +136,22 @@ def grab_and_process():
 
             # Fit Gaussian in the X direction
             x = np.arange(width)
-            popt_x, _ = curve_fit(gaussian, x, intensity_x, p0=[np.max(intensity_x), np.argmax(intensity_x), 10])
+            try:
+                popt_x, _ = curve_fit(gaussian, x, intensity_x, p0=[np.max(intensity_x), np.argmax(intensity_x), 10])
+                peak_x_arcsec = (popt_x[1] - zero_x) * CONVERSION_FACTOR
+            except RuntimeError:
+                peak_x_arcsec = np.nan
 
             # Fit Gaussian in the Y direction
             y = np.arange(height)
-            popt_y, _ = curve_fit(gaussian, y, intensity_y, p0=[np.max(intensity_y), np.argmax(intensity_y), 10])
-
-            # Convert peak positions from pixels to arcseconds
-            peak_x_arcsec = (popt_x[1] - zero_x) * CONVERSION_FACTOR
-            peak_y_arcsec = (popt_y[1] - zero_y) * CONVERSION_FACTOR
+            try:
+                popt_y, _ = curve_fit(gaussian, y, intensity_y, p0=[np.max(intensity_y), np.argmax(intensity_y), 10])
+                peak_y_arcsec = (popt_y[1] - zero_y) * CONVERSION_FACTOR
+            except RuntimeError:
+                peak_y_arcsec = np.nan
 
             # Print the determined values
-            print(f"X Direction: Amplitude={popt_x[0]:.2f}, Mean={popt_x[1]:.2f} pixels, Stddev={popt_x[2]:.2f}")
             print(f"X Direction: Mean={peak_x_arcsec:.2f} arcseconds")
-            print(f"Y Direction: Amplitude={popt_y[0]:.2f}, Mean={popt_y[1]:.2f} pixels, Stddev={popt_y[2]:.2f}")
             print(f"Y Direction: Mean={peak_y_arcsec:.2f} arcseconds")
 
             # Store peak positions
@@ -138,8 +160,22 @@ def grab_and_process():
 
             # Update the latest frame and peaks
             latest_frame = frame
-            latest_peak_x = popt_x[1]
-            latest_peak_y = popt_y[1]
+            latest_peak_x = popt_x[1] if not np.isnan(peak_x_arcsec) else latest_peak_x
+            latest_peak_y = popt_y[1] if not np.isnan(peak_y_arcsec) else latest_peak_y
+
+            # Handle averaging
+            if averaging:
+                current_time = time.time()
+                if current_time - average_start_time <= 3:
+                    if not np.isnan(peak_x_arcsec):
+                        average_x_values.append(peak_x_arcsec)
+                    if not np.isnan(peak_y_arcsec):
+                        average_y_values.append(peak_y_arcsec)
+                else:
+                    averaging = False
+                    avg_x = np.mean(average_x_values) if average_x_values else 0
+                    avg_y = np.mean(average_y_values) if average_y_values else 0
+                    average_display.setText(f"Averaged Values: X = {avg_x:.2f}, Y = {avg_y:.2f}")
 
         grabResult.Release()
         time.sleep(0.005)  # Sleep for 5 milliseconds
@@ -177,9 +213,19 @@ def reset_y_peak_position():
     curve_intensity_y.setData(np.zeros(height))
 
 
-# Connect buttons to reset functions
+# Start averaging measurements
+def start_averaging():
+    global averaging, average_start_time, average_x_values, average_y_values
+    averaging = True
+    average_start_time = time.time()
+    average_x_values = []
+    average_y_values = []
+
+
+# Connect buttons to their respective functions
 button_reset_x.clicked.connect(reset_x_peak_position)
 button_reset_y.clicked.connect(reset_y_peak_position)
+button_average.clicked.connect(start_averaging)
 
 # Start a thread for grabbing and processing frames
 thread = threading.Thread(target=grab_and_process)
