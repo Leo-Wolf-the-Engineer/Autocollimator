@@ -1,6 +1,10 @@
-#pip3 install pypylon
-pillow
-matplotlib
+dash
+dash-core-components
+dash-html-components
+dash-renderer
+dash-table
+plotly
 numpy
-pillow
 opencv-python
+scipy
+pypylon
