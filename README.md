@@ -1,6 +1,10 @@
-# PadMe-2D Air Bearing Simulation
+# Autocollimator Software
 
-An air bearing simulation based on the finite volume method.
+Using a Basler GigE Webcam
+The Live view:
+![image](images/autocollimator_live_20241113_210404.png)
+The Straightness measuring interface:
+![image](images/straightness_measurement_20241113_213029.png)
 
 ## Installation
 
