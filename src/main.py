@@ -10,6 +10,7 @@ import threading
 import time
 from image_aquisition import CameraManager
 import utils
+from image_processing import ImageProcessor
 
 # Constants for conversion from pixels to arcseconds
 PIXEL_PITCH = 3.45e-6  # in meters
@@ -18,6 +19,9 @@ CONVERSION_FACTOR = PIXEL_PITCH / (2 * FOCAL_LENGTH) * 180 / np.pi * 3600
 
 # Initialize the camera
 camera = CameraManager("Basler")
+
+# Initialize the ImageProcessor instance
+processor = ImageProcessor(CONVERSION_FACTOR, "Gaussian")
 
 # Determine frame size
 
@@ -136,25 +140,14 @@ def grab_and_process():
     while True:
         frame = camera.retrieve_frame()
 
-        # Sum the intensities of the grayscale image
-        intensity_x = np.sum(frame, axis=0)
-        intensity_y = np.sum(frame, axis=1)
+        # Update frame count for FPS calculation
+        frame_count += 1
 
-        # Fit Gaussian in the X direction
-        x = np.arange(frame.shape[1])
-        try:
-            popt_x, _ = curve_fit(utils.gaussian, x, intensity_x, p0=[np.max(intensity_x), np.argmax(intensity_x), 10])
-            peak_x_arcsec = (popt_x[1] - zero_x) * CONVERSION_FACTOR
-        except RuntimeError:
-            peak_x_arcsec = np.nan
+        peak_x_arcsec, peak_y_arcsec = processor.process_frame(frame)
 
-        # Fit Gaussian in the Y direction
-        y = np.arange(frame.shape[0])
-        try:
-            popt_y, _ = curve_fit(utils.gaussian, y, intensity_y, p0=[np.max(intensity_y), np.argmax(intensity_y), 10])
-            peak_y_arcsec = (popt_y[1] - zero_y) * CONVERSION_FACTOR
-        except RuntimeError:
-            peak_y_arcsec = np.nan
+        # Zero the peak positions
+        peak_x_arcsec -= zero_x
+        peak_y_arcsec -= zero_y
 
         # Print the determined values
         print(f"X Direction: Mean={peak_x_arcsec:.2f} arcseconds")
@@ -166,10 +159,12 @@ def grab_and_process():
 
         # Update the latest frame and peaks
         latest_frame = frame
-        latest_peak_x = popt_x[1] if not np.isnan(peak_x_arcsec) else latest_peak_x
-        latest_peak_y = popt_y[1] if not np.isnan(peak_y_arcsec) else latest_peak_y
+        latest_peak_x = peak_x_arcsec if not np.isnan(peak_x_arcsec) else latest_peak_x
+        latest_peak_y = peak_y_arcsec if not np.isnan(peak_y_arcsec) else latest_peak_y
 
         # Handle averaging
+        #Todo: Fix looping
+        #Todo: handle multiple peaks
         if averaging:
             current_time = time.time()
             if current_time - average_start_time <= 3:
@@ -182,9 +177,6 @@ def grab_and_process():
                 avg_x = np.mean(average_x_values) if average_x_values else 0
                 avg_y = np.mean(average_y_values) if average_y_values else 0
                 average_display.setText(f"Averaged Values: X = {avg_x:.2f}, Y = {avg_y:.2f}")
-
-        # Update frame count for FPS calculation
-        frame_count += 1
 
 # Update function to update the plots
 def update_plots():

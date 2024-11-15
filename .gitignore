@@ -9,3 +9,4 @@ src/__pycache__/measurement_module.cpython-310.pyc
 src/__pycache__/plot_module.cpython-310.pyc
 src/__pycache__/utils.cpython-310.pyc
 src/__pycache__/image_aquisition.cpython-310.pyc
+/src/__pycache__
