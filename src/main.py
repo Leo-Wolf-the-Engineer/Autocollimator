@@ -11,10 +11,10 @@ import time
 import utils
 from datetime import datetime
 
-# Constants for conversion
+# Constants for conversion from pixels to arcseconds
 PIXEL_PITCH = 3.45e-6  # in meters
 FOCAL_LENGTH = 0.385  # in meters
-CONVERSION_FACTOR = PIXEL_PITCH / (2 * FOCAL_LENGTH) * 180 / np.pi * 3600  # conversion factor from pixels to arcseconds
+CONVERSION_FACTOR = PIXEL_PITCH / (2 * FOCAL_LENGTH) * 180 / np.pi * 3600
 
 
 # Function to define the Gaussian curve
@@ -24,6 +24,11 @@ def gaussian(x, amp, mean, stddev):
 # Initialize the camera
 camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
 camera.Open()
+camera.PixelFormat.SetValue('Mono12p')
+camera.Width.SetValue(1936)
+camera.Height.SetValue(1216)
+camera.BslExposureTimeMode.SetValue('UltraShort')
+camera.ExposureTime.SetValue(3.0);
 camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
 # Determine frame size
@@ -201,7 +206,6 @@ def grab_and_process():
             frame_count += 1
 
         grabResult.Release()
-        time.sleep(0.005)  # Sleep for 5 milliseconds to handle high frame rate
 
 # Update function to update the plots
 def update_plots():
