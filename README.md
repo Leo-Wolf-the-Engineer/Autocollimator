@@ -1,6 +1,6 @@
 # Autocollimator Software (WIP)
 
-Using a Basler GigE Webcam
+Using a Basler GigE Webcam  
 The Live view:
 ![image](images/autocollimator_live_20241113_210404.png)
 The Straightness measuring interface:
