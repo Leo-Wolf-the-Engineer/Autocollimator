@@ -11,6 +11,7 @@ import time
 from image_aquisition import CameraManager
 import utils
 from image_processing import ImageProcessor
+from win_live import AutocollimatorLiveWindow
 
 # Constants for conversion from pixels to arcseconds
 PIXEL_PITCH = 3.45e-6  # in meters
@@ -23,96 +24,16 @@ camera = CameraManager("Basler")
 # Initialize the ImageProcessor instance
 processor = ImageProcessor(CONVERSION_FACTOR, "Gaussian")
 
-# Determine frame size
-
 # Initialize PyQtGraph application
 app = QtWidgets.QApplication([])
 
-# Create a window with a layout
-win = QtWidgets.QMainWindow()
-win.setWindowTitle("Autocollimator live")
-central_widget = QtWidgets.QWidget()
-win.setCentralWidget(central_widget)
-main_layout = QtWidgets.QHBoxLayout()
-central_widget.setLayout(main_layout)
+# Create and show the Autocollimator live window
+autocollimator_live_window = AutocollimatorLiveWindow(processor, CONVERSION_FACTOR, app)
+autocollimator_live_window.win.show()
 
-# Create a vertical layout for the left side (frame and intensity distributions)
-left_layout = QtWidgets.QVBoxLayout()
-main_layout.addLayout(left_layout)
+# Determine frame size
 
-# Create a plot widget for the current frame
-plot_frame = pg.PlotWidget(title="Current Frame")
-plot_frame.setBackground('k')
-img_item = pg.ImageItem()
-plot_frame.addItem(img_item)
-left_layout.addWidget(plot_frame)
 
-# Create a plot widget for intensity distribution in X direction
-plot_intensity_x = pg.PlotWidget(title="Intensity Distribution in X Direction")
-plot_intensity_x.setBackground('k')
-curve_intensity_x = plot_intensity_x.plot(pen='y')
-peak_line_x = plot_intensity_x.addLine(x=0, pen=pg.mkPen('r', style=QtCore.Qt.DashLine))
-plot_intensity_x.setLabel('left', 'Intensity')
-plot_intensity_x.setLabel('bottom', 'Pixel Position')
-left_layout.addWidget(plot_intensity_x)
-
-# Create a plot widget for intensity distribution in Y direction
-plot_intensity_y = pg.PlotWidget(title="Intensity Distribution in Y Direction")
-plot_intensity_y.setBackground('k')
-curve_intensity_y = plot_intensity_y.plot(pen='y')
-peak_line_y = plot_intensity_y.addLine(x=0, pen=pg.mkPen('r', style=QtCore.Qt.DashLine))
-plot_intensity_y.setLabel('left', 'Intensity')
-plot_intensity_y.setLabel('bottom', 'Pixel Position')
-left_layout.addWidget(plot_intensity_y)
-
-# Create a vertical layout for the right side (peak positions and buttons)
-right_layout = QtWidgets.QVBoxLayout()
-main_layout.addLayout(right_layout)
-
-# Create a plot widget for peak position in X direction
-plot_peak_x = pg.PlotWidget(title="Peak Position in X Direction")
-plot_peak_x.setBackground('k')
-curve_peak_x = plot_peak_x.plot(pen='y')
-plot_peak_x.setLabel('left', 'Peak Position (arcseconds)')
-plot_peak_x.setLabel('bottom', 'Time (minutes)')
-right_layout.addWidget(plot_peak_x)
-
-# Create a plot widget for peak position in Y direction
-plot_peak_y = pg.PlotWidget(title="Peak Position in Y Direction")
-plot_peak_y.setBackground('k')
-curve_peak_y = plot_peak_y.plot(pen='y')
-plot_peak_y.setLabel('left', 'Peak Position (arcseconds)')
-plot_peak_y.setLabel('bottom', 'Time (minutes)')
-right_layout.addWidget(plot_peak_y)
-
-# Create a horizontal layout for the buttons
-button_layout = QtWidgets.QHBoxLayout()
-right_layout.addLayout(button_layout)
-
-# Create a button to zero peak position values and reset the X plot
-button_reset_x = QtWidgets.QPushButton("Reset X Peak Position")
-button_layout.addWidget(button_reset_x)
-
-# Create a button to zero peak position values and reset the Y plot
-button_reset_y = QtWidgets.QPushButton("Reset Y Peak Position")
-button_layout.addWidget(button_reset_y)
-
-# Create a button to start averaging measurements
-button_average = QtWidgets.QPushButton("Take Average")
-button_layout.addWidget(button_average)
-
-# Create a text box to display averaged values
-average_display = QtWidgets.QLabel("Averaged Values: X = 0.0, Y = 0.0")
-right_layout.addWidget(average_display)
-
-# Create a box to show how many frames per second are received
-fps_display = QtWidgets.QLabel("FPS: 0")
-right_layout.addWidget(fps_display)
-
-# Create a button to save the whole window as an image
-button_save_image_1 = QtWidgets.QPushButton("Save Window as Image")
-button_layout.addWidget(button_save_image_1)
-button_save_image_1.clicked.connect(lambda: utils.save_window_as_image(win,app))
 
 # Initialize data storage
 peak_x_history = []
@@ -141,42 +62,49 @@ def grab_and_process():
         frame = camera.retrieve_frame()
 
         # Update frame count for FPS calculation
-        frame_count += 1
+        autocollimator_live_window.frame_count += 1
 
+        # Process the frame using the ImageProcessor instance
         peak_x_arcsec, peak_y_arcsec = processor.process_frame(frame)
 
         # Zero the peak positions
-        peak_x_arcsec -= zero_x
-        peak_y_arcsec -= zero_y
+        peak_x_arcsec -= autocollimator_live_window.zero_x
+        peak_y_arcsec -= autocollimator_live_window.zero_y
+
+        # Store peak positions
+        autocollimator_live_window.peak_x_history.append(
+            ((time.time_ns() - autocollimator_live_window.average_start_time) / 6e10, peak_x_arcsec))
+        autocollimator_live_window.peak_y_history.append(
+            ((time.time_ns() - autocollimator_live_window.average_start_time) / 6e10, peak_y_arcsec))
+
+        # Update the latest frame and peaks
+        autocollimator_live_window.latest_frame = frame
+        autocollimator_live_window.latest_peak_x = peak_x_arcsec if not np.isnan(
+            peak_x_arcsec) else autocollimator_live_window.latest_peak_x
+        autocollimator_live_window.latest_peak_y = peak_y_arcsec if not np.isnan(
+            peak_y_arcsec) else autocollimator_live_window.latest_peak_y
 
         # Print the determined values
         print(f"X Direction: Mean={peak_x_arcsec:.2f} arcseconds")
         print(f"Y Direction: Mean={peak_y_arcsec:.2f} arcseconds")
 
-        # Store peak positions
-        peak_x_history.append(((time.time_ns() - average_start_time) / 6e10, peak_x_arcsec))
-        peak_y_history.append(((time.time_ns() - average_start_time) / 6e10, peak_y_arcsec))
-
-        # Update the latest frame and peaks
-        latest_frame = frame
-        latest_peak_x = peak_x_arcsec if not np.isnan(peak_x_arcsec) else latest_peak_x
-        latest_peak_y = peak_y_arcsec if not np.isnan(peak_y_arcsec) else latest_peak_y
-
         # Handle averaging
         #Todo: Fix looping
         #Todo: handle multiple peaks
-        if averaging:
+        if autocollimator_live_window.averaging:
             current_time = time.time()
-            if current_time - average_start_time <= 3:
+            if current_time - autocollimator_live_window.average_start_time <= 3:
                 if not np.isnan(peak_x_arcsec):
-                    average_x_values.append(peak_x_arcsec)
+                    autocollimator_live_window.average_x_values.append(peak_x_arcsec)
                 if not np.isnan(peak_y_arcsec):
-                    average_y_values.append(peak_y_arcsec)
+                    autocollimator_live_window.average_y_values.append(peak_y_arcsec)
             else:
-                averaging = False
-                avg_x = np.mean(average_x_values) if average_x_values else 0
-                avg_y = np.mean(average_y_values) if average_y_values else 0
-                average_display.setText(f"Averaged Values: X = {avg_x:.2f}, Y = {avg_y:.2f}")
+                autocollimator_live_window.averaging = False
+                avg_x = np.mean(
+                    autocollimator_live_window.average_x_values) if autocollimator_live_window.average_x_values else 0
+                avg_y = np.mean(
+                    autocollimator_live_window.average_y_values) if autocollimator_live_window.average_y_values else 0
+                autocollimator_live_window.average_display.setText(f"Averaged Values: X = {avg_x:.2f}, Y = {avg_y:.2f}")
 
 # Update function to update the plots
 def update_plots():
@@ -190,16 +118,6 @@ def update_plots():
         peak_line_y.setValue(latest_peak_y)
         curve_peak_x.setData(*zip(*peak_x_history))
         curve_peak_y.setData(*zip(*peak_y_history))
-
-    # Update FPS display
-    current_time = time.time()
-    elapsed_time = current_time - start_time
-    if elapsed_time > 3:
-        fps = frame_count / elapsed_time
-        fps_display.setText(f"FPS: {fps:.2f}")
-        frame_count = 0
-        start_time = current_time
-        print(frame_count)
 
 # Reset function for X peak position plot
 def reset_x_peak_position():
@@ -226,11 +144,6 @@ def start_averaging():
     average_start_time = time.time_ns()
     average_x_values = []
     average_y_values = []
-
-# Connect buttons to their respective functions
-button_reset_x.clicked.connect(reset_x_peak_position)
-button_reset_y.clicked.connect(reset_y_peak_position)
-button_average.clicked.connect(start_averaging)
 
 # Start a thread for grabbing and processing frames
 thread = threading.Thread(target=grab_and_process)
@@ -414,7 +327,6 @@ button_take_measurement.clicked.connect(take_measurement)
 button_clear_values.clicked.connect(clear_all_values)
 
 # Show both windows
-win.show()
 win2.show()
 
 # Start the PyQtGraph application
