@@ -7,8 +7,14 @@ import time
 import utils
 
 class StraightnessMeasurementWindow:
-    def __init__(self, app):
+    def __init__(self, app, live_window):
+        """
+        Initialize the StraightnessMeasurementWindow
+        :param app:
+        :param live_window:
+        """
         self.app = app
+        self.live_window = live_window
 
         # Initialize data storage for straightness measurements
         self.straightness_measurements_x = []
@@ -76,7 +82,7 @@ class StraightnessMeasurementWindow:
 
         # Create a dropdown menu for unit selection
         self.unit_dropdown = QtWidgets.QComboBox()
-        self.unit_dropdown.addItems(["arcseconds", "microns"])
+        self.unit_dropdown.addItems(["microns", "arcseconds"])
         straightness_controls_layout.addWidget(self.unit_dropdown)
 
         # Create a box to display the min to max difference
@@ -90,6 +96,10 @@ class StraightnessMeasurementWindow:
         self.button_clear_values.clicked.connect(self.clear_all_values)
 
     def take_measurement(self):
+        """
+        Take a measurement and update the plot
+        :return:
+        """
         try:
             increment = float(self.increment_box.text())
             timeframe = float(self.timeframe_box.text())
@@ -98,17 +108,15 @@ class StraightnessMeasurementWindow:
             return
 
         # Start averaging measurements
-        averaging = True
         average_start_time = time.time()
         average_x_values = []
         average_y_values = []
 
         while time.time() - average_start_time <= timeframe:
-            if not np.isnan(latest_peak_x):
-                average_x_values.append(latest_peak_x)
-            if not np.isnan(latest_peak_y):
-                average_y_values.append(latest_peak_y)
-            time.sleep(0.005)
+            if not np.isnan(self.live_window.latest_peak_x):
+                average_x_values.append(self.live_window.latest_peak_x)
+            if not np.isnan(self.live_window.latest_peak_y):
+                average_y_values.append(self.live_window.latest_peak_y)
 
         avg_x = np.mean(average_x_values) if average_x_values else 0
         avg_y = np.mean(average_y_values) if average_y_values else 0
@@ -151,6 +159,10 @@ class StraightnessMeasurementWindow:
         self.position_box.setText(str(self.current_position))
 
     def clear_all_values(self):
+        """
+        Clear all measured values
+        :return:
+        """
         self.straightness_measurements_x = []
         self.straightness_measurements_y = []
         self.current_position = 1
