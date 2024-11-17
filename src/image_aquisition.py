@@ -58,17 +58,17 @@ class BaslerCamera:
         self.camera.Open()
 
         # Set the pixel format to Mono12p
-        self.camera.PixelFormat.SetValue('Mono12p')
+        self.camera.PixelFormat.SetValue('Mono8')
 
         # Set the width and height
         self.camera.Width.SetValue(1936)
         self.camera.Height.SetValue(1216)
 
         # Set the exposure time mode to UltraShort
-        self.camera.BslExposureTimeMode.SetValue('UltraShort')
+        self.camera.BslExposureTimeMode.SetValue('Standard') #UltraShort / Standard
 
         # Set the exposure time to 5.0 microseconds
-        self.camera.ExposureTime.SetValue(5.0)
+        self.camera.ExposureTime.SetValue(20000.0)
 
         # Start grabbing images
         self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)

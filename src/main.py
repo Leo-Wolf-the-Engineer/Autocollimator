@@ -1,18 +1,12 @@
 import numpy as np
-import cv2
-from pypylon import pylon
-from scipy.optimize import curve_fit
-import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtWidgets
-from PyQt5.QtGui import QPixmap, QScreen
-from pyqtgraph.exporters import ImageExporter
 import threading
 import time
 from image_aquisition import CameraManager
-import utils
 from image_processing import ImageProcessor
 from win_live import AutocollimatorLiveWindow
 from win_straightness import StraightnessMeasurementWindow
+import warnings
 
 # Constants for conversion from pixels to arcseconds
 PIXEL_PITCH = 3.45e-6  # in meters
@@ -40,6 +34,10 @@ straightness_measurement_window.win.show()
 def grab_and_process():
     while True:
         frame = camera.retrieve_frame()
+
+        # Calculate the brightest pixel value
+        #brightest_pixel_value = np.max(frame)
+        #print(f"Brightest Pixel Value: {brightest_pixel_value}")
 
         # Update frame count for FPS calculation
         autocollimator_live_window.frame_count += 1
