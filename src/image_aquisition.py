@@ -23,6 +23,16 @@ class CameraManager:
         if camera_type == "USB":
             raise Exception("camera_type USB is not implemented yet")
 
+    def get_image_size(self) -> tuple:
+        """
+        Get the image size of the camera
+        :return: tuple
+        """
+        if self.camera is not None:
+            return self.camera.get_image_size()
+        else:
+            raise Exception("No camera initialized")
+
     def retrieve_frame(self) -> np.ndarray:
         """
         Retrieve a frame from the camera
@@ -72,6 +82,12 @@ class BaslerCamera:
 
         # Start grabbing images
         self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
+
+    def get_image_size(self):
+        """
+        Get the image size of the camera
+        """
+        return self.camera.Width.GetValue(), self.camera.Height.GetValue()
 
     def retrieve_frame(self):
         """

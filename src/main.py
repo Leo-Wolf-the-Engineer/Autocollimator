@@ -6,6 +6,8 @@ from image_aquisition import CameraManager
 from image_processing import ImageProcessor
 from win_live import AutocollimatorLiveWindow
 from win_straightness import StraightnessMeasurementWindow
+from data_storage import ContinousDataStorage
+from data_storage import POIDataStorage
 import warnings
 
 # Constants for conversion from pixels to arcseconds
@@ -17,10 +19,17 @@ CONVERSION_FACTOR = PIXEL_PITCH / (2 * FOCAL_LENGTH) * 180 / np.pi * 3600
 camera = CameraManager("Basler")
 
 # Initialize the ImageProcessor instance
-processor = ImageProcessor(CONVERSION_FACTOR, "Gaussian")
+processor = ImageProcessor("Gaussian")
 
 # Initialize PyQtGraph application
 app = QtWidgets.QApplication([])
+
+# Initialize the data storage
+imagewidth, imageheight = camera.get_image_size()
+ContinousDataStorage = ContinousDataStorage(imagewidth, imageheight, CONVERSION_FACTOR)
+
+#Initialize the data storage for straightness measurements
+straightness_data = POIDataStorage(imagewidth, imageheight, CONVERSION_FACTOR)
 
 # Create and show the Autocollimator live window
 autocollimator_live_window = AutocollimatorLiveWindow(processor, CONVERSION_FACTOR, app)
@@ -42,12 +51,12 @@ def grab_and_process():
         # Update frame count for FPS calculation
         autocollimator_live_window.frame_count += 1
 
-        # Process the frame using the ImageProcessor instance
-        peak_x_arcsec, peak_y_arcsec = processor.process_frame(frame)
+        # Process the frame using the ImageProcessor
+        peak_x, peak_y = processor.process_frame(frame)
 
         # Zero the peak positions
-        peak_x_arcsec -= autocollimator_live_window.zero_x
-        peak_y_arcsec -= autocollimator_live_window.zero_y
+        peak_x -= autocollimator_live_window.zero_x
+        peak_y -= autocollimator_live_window.zero_y
 
         # Store peak positions
         autocollimator_live_window.peak_x_history.append(

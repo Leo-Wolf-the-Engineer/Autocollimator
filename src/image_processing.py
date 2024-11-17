@@ -63,9 +63,9 @@ class Gaussian_Processor:
         y = np.arange(frame.shape[0])
         try:
             popt_y, _ = curve_fit(self.gaussian, y, intensity_y, p0=[np.max(intensity_y), np.argmax(intensity_y), 10])
-            peak_y_arcsec = popt_y[1]
+            peak_y = popt_y[1]
         except RuntimeError:
-            peak_y_arcsec = np.nan
+            peak_y = np.nan
 
         return peak_x, peak_y
 
