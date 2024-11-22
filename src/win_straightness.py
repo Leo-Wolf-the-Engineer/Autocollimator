@@ -1,25 +1,17 @@
-# win_straightness.py
-
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtWidgets
 import numpy as np
 import time
+import pyqtgraph as pg
 import utils
+from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtCore import QTimer
+
 
 class StraightnessMeasurementWindow:
-    def __init__(self, app, live_window):
-        """
-        Initialize the StraightnessMeasurementWindow
-        :param app:
-        :param live_window:
-        """
+    def __init__(self, app, data_storage, poi_data_storage):
         self.app = app
-        self.live_window = live_window
-
-        # Initialize data storage for straightness measurements
-        self.straightness_measurements_x = []
-        self.straightness_measurements_y = []
-        self.current_position = 1
+        self.data_storage = data_storage
+        self.poi_data_storage = poi_data_storage
+        self.current_position = 0
 
         # Create a window for straightness measurement
         self.win = QtWidgets.QMainWindow()
@@ -67,14 +59,18 @@ class StraightnessMeasurementWindow:
         self.position_box = QtWidgets.QLineEdit("1")
         straightness_controls_layout.addWidget(self.position_box)
 
-        # Create a button to take a measurement
-        self.button_take_measurement = QtWidgets.QPushButton("Take Measurement")
-        straightness_controls_layout.addWidget(self.button_take_measurement)
+        # Create a button to take a new measurement
+        self.button_take_new_measurement = QtWidgets.QPushButton("Take Measurement")
+        straightness_controls_layout.addWidget(self.button_take_new_measurement)
+
+        # Create a button to average a measurement with the previous ones
+        self.button_take_avg = QtWidgets.QPushButton("Take Measurement")
+        straightness_controls_layout.addWidget(self.button_take_avg)
 
         # Create a button to save the plot
-        self.button_save_image_2 = QtWidgets.QPushButton("Save Plot")
-        straightness_controls_layout.addWidget(self.button_save_image_2)
-        self.button_save_image_2.clicked.connect(lambda: utils.save_window_as_image(self.win, self.app))
+        self.button_save_image = QtWidgets.QPushButton("Save Plot")
+        straightness_controls_layout.addWidget(self.button_save_image)
+        self.button_save_image.clicked.connect(lambda: utils.save_window_as_image(self.win, self.app))
 
         # Create a button to clear all measured values
         self.button_clear_values = QtWidgets.QPushButton("Clear All Values")
@@ -82,7 +78,7 @@ class StraightnessMeasurementWindow:
 
         # Create a dropdown menu for unit selection
         self.unit_dropdown = QtWidgets.QComboBox()
-        self.unit_dropdown.addItems(["microns", "arcseconds"])
+        self.unit_dropdown.addItems(["microns", "microradians", "arcseconds", "pixels"])
         straightness_controls_layout.addWidget(self.unit_dropdown)
 
         # Create a box to display the min to max difference
@@ -92,85 +88,69 @@ class StraightnessMeasurementWindow:
         straightness_controls_layout.addWidget(self.min_max_display_y)
 
         # Connect buttons to their respective functions
-        self.button_take_measurement.clicked.connect(self.take_measurement)
+        self.button_take_new_measurement.clicked.connect(self.take_measurement("new"))
+        self.button_take_avg.clicked.connect(self.take_measurement("avg"))
         self.button_clear_values.clicked.connect(self.clear_all_values)
 
-    def take_measurement(self):
+    def take_measurement(self, measurement_type):
         """
         Take a measurement and update the plot
+        :param measurement_type: The type of measurement to be taken, can be "new" or "avg"
+        :return:
+        """
+
+        # Use QTimer to call the function after the specified timeframe
+        QTimer.singleShot(int(self.timeframe * 1000), lambda: self.collect_data(measurement_type))
+
+    def collect_data(self, measurement_type):
+        """
+        Collect data and update the plot
+        :param measurement_type: The type of measurement to be taken, can be "new" or "avg"
         :return:
         """
         try:
-            increment = float(self.increment_box.text())
-            timeframe = float(self.timeframe_box.text())
-            position = int(self.position_box.text())
+            self.increment = float(self.increment_box.text())
+            self.timeframe = float(self.timeframe_box.text())
+            self.position = int(self.position_box.text())
         except ValueError:
             return
+        unit = self.unit_dropdown.currentText()
 
-        # Start averaging measurements
-        average_start_time = time.time()
-        average_x_values = []
-        average_y_values = []
+        # Collect the values added to data_storage during the timeframe
+        timestamps = self.data_storage.get_timestamp()
+        current_time = time.time_ns()
+        start_time = current_time - int(self.timeframe * 1e9)
+        indices = [i for i, t in enumerate(timestamps) if start_time <= t <= current_time]
 
-        while time.time() - average_start_time <= timeframe:
-            if not np.isnan(self.live_window.latest_peak_x):
-                average_x_values.append(self.live_window.latest_peak_x)
-            if not np.isnan(self.live_window.latest_peak_y):
-                average_y_values.append(self.live_window.latest_peak_y)
+        # Collect the values from the data_storage
+        collected_x_values, collected_y_values = self.data_storage.get_data("Pixels")
+        collected_x_values = [collected_x_values[i] for i in indices]
+        collected_y_values = [collected_y_values[i] for i in indices]
 
-        avg_x = np.mean(average_x_values) if average_x_values else 0
-        avg_y = np.mean(average_y_values) if average_y_values else 0
+        if measurement_type == "new":
+            # Store the values into POIDataStorage
+            self.poi_data_storage.new_data(collected_x_values, collected_y_values)
+        elif measurement_type == "avg":
+            # Store the values into POIDataStorage
+            self.poi_data_storage.average_data(collected_x_values, collected_y_values)
 
-        # Convert arcseconds to microns if needed
-        if self.unit_dropdown.currentText() == "microns":
-            height_diff_x = avg_x * np.pi * increment * 1e6 / (3600 * 180)
-            height_diff_y = avg_y * np.pi * increment * 1e6 / (3600 * 180)
+        if unit == "Microradians" or unit == "Arcseconds" or unit == "Pixels":
+            # Retrieve data in the specified unit
+            detrended_x, detrended_y = self.poi_data_storage.get_data(unit)
         else:
-            height_diff_x = avg_x
-            height_diff_y = avg_y
-
-        # Store the measurement
-        if position > len(self.straightness_measurements_x):
-            self.straightness_measurements_x.append((position, height_diff_x))
-            self.straightness_measurements_y.append((position, height_diff_y))
-        else:
-            self.straightness_measurements_x[position - 1] = (position, height_diff_x)
-            self.straightness_measurements_y[position - 1] = (position, height_diff_y)
-
-        # Detrend the data
-        positions_x, height_diffs_x = zip(*self.straightness_measurements_x)
-        height_diffs_detrended_x = np.array(height_diffs_x) - np.polyval(np.polyfit(positions_x, height_diffs_x, 1), positions_x)
-
-        positions_y, height_diffs_y = zip(*self.straightness_measurements_y)
-        height_diffs_detrended_y = np.array(height_diffs_y) - np.polyval(np.polyfit(positions_y, height_diffs_y, 1), positions_y)
+            # Retrieve detrended data
+            detrended_x, detrended_y = self.poi_data_storage.get_data_detrended("Microradians") * self.increment
 
         # Update the plot
-        self.curve_straightness_x.setData(np.array(positions_x) * increment, height_diffs_detrended_x)
-        self.curve_straightness_y.setData(np.array(positions_y) * increment, height_diffs_detrended_y)
+        self.curve_straightness_x.setData(np.array(positions_x) * self.increment, detrended_x)
+        self.curve_straightness_y.setData(np.array(positions_y) * self.increment, detrended_y)
 
         # Update the min-max difference display
-        min_max_diff_x = np.max(height_diffs_detrended_x) - np.min(height_diffs_detrended_x)
+        min_max_diff_x = np.max(detrended_x) - np.min(detrended_x)
         self.min_max_display_x.setText(f"Min-Max Difference X: {min_max_diff_x:.2f}")
-        min_max_diff_y = np.max(height_diffs_detrended_y) - np.min(height_diffs_detrended_y)
+        min_max_diff_y = np.max(detrended_y) - np.min(detrended_y)
         self.min_max_display_y.setText(f"Min-Max Difference Y: {min_max_diff_y:.2f}")
 
         # Increment the position counter
-        self.current_position = position + 1
-        self.position_box.setText(str(self.current_position))
-
-    def clear_all_values(self):
-        """
-        Clear all measured values
-        :return:
-        """
-        self.straightness_measurements_x = []
-        self.straightness_measurements_y = []
-        self.current_position = 1
-
-        self.curve_straightness_x.setData([], [])
-        self.curve_straightness_y.setData([], [])
-
-        self.min_max_display_x.setText("Min-Max Difference X: 0.0")
-        self.min_max_display_y.setText("Min-Max Difference Y: 0.0")
-
+        self.current_position = self.position + 1
         self.position_box.setText(str(self.current_position))

@@ -4,32 +4,38 @@ import numpy as np
 
 
 class ContinousDataStorage:
-    def __init__(self, Heigth, Width, conversion_factor):
+    def __init__(self, conversion_factor):
         """
         Initialize the data storage
         """
-        self.Heigth = Heigth
-        self.Width = Width
-        # position is stored in pixels
         self.dataX = []
         self.dataY = []
         self.time = []
-        self.offsetX = Width / 2
-        self.offsetY = Heigth / 2
         self.conversion_factor = conversion_factor
 
-    def new_data(self, value_X, value_Y):
+    def new_data(self, values_X, values_Y):
         """
         Add new data to the storage.
-        :param value_X: The X value to be added
-        :param value_Y: The Y value to be added
+                :param values_X: The list of X values in Pixels to be added
+        :param values_Y: The list of Y in Pixels values to be added
         """
-        if value_X > self.Width or value_X < 0 or value_Y > self.Heigth or value_Y < 0 or value_X is Nan or value_Y is None:
-            raise warnings.warn("Value out of range")
+        if len(values_X) > 10 or len(values_Y) > 10:
+            raise ValueError("Cannot store more than 10 values at a time")
         else:
-            self.dataX.append(value_X - self.offsetX)
-            self.dataY.append(value_Y - self.offsetY)
-            self.time.append(time.time_ns())
+            for value in values_X:
+                if value == np.nan or value > self.Width or value < 0:
+                    values_X.remove(value)
+                    values_Y.remove(value)
+                    warnings.warn("Removing Nan or out of range value Pair...")
+            for value in values_Y:
+                if value == np.nan or value > self.Heigth or value < 0:
+                    values_X.remove(value)
+                    values_Y.remove(value)
+                    warnings.warn("Removing Nan or out of range value Pair...")
+
+        self.dataX.append([value - self.offsetX for value in values_X])
+        self.dataY.append([value - self.offsetY for value in values_Y])
+        self.time.append(time.time_ns())
 
     def get_data(self, unit="Arcseconds"):
         """
@@ -38,29 +44,22 @@ class ContinousDataStorage:
         :return: A list of all stored data in the specified unit
         """
         if unit == "Arcseconds":
-            return self.dataX * self.conversion_factor, self.dataY * self.conversion_factor
+            return [[x * self.conversion_factor for x in sublist] for sublist in self.dataX], \
+                [[y * self.conversion_factor for y in sublist] for sublist in self.dataY]
         elif unit == "Pixels":
             return self.dataX, self.dataY
         elif unit == "Microradians":
-            return self.dataX / self.conversion_factor * np.pi * 1e3 / 648, self.dataY / self.conversion_factor * np.pi * 1e3 / 648
+            return [[x / self.conversion_factor * np.pi * 1e3 / 648 for x in sublist] for sublist in self.dataX], \
+                [[y / self.conversion_factor * np.pi * 1e3 / 648 for y in sublist] for sublist in self.dataY]
         else:
             raise Exception("Unit not recognized")
 
-    def get_data_mov_avg(self, unit="Arcseconds"):
+    def get_timestamp(self):
         """
-        Retrieve all data from the storage and filter with a moving average.
-        :param index: The index of the data to be returned
-        :param unit: The unit of the data to be returned, default is Arcseconds, can be pixels or microradians
-        :return: The stored data
+        Retrieve all data from the storage.
+        :return: A list of all stored data in the specified unit
         """
-        if unit == "Arcseconds":
-            return np.convolve(self.dataX, np.ones(5) / 5, mode='valid') * self.conversion_factor, np.convolve(self.dataY, np.ones(5) / 5, mode='valid') * self.conversion_factor
-        elif unit == "Pixels":
-            return np.convolve(self.dataX, np.ones(5) / 5, mode='valid'), np.convolve(self.dataY, np.ones(5) / 5, mode='valid')
-        elif unit == "Microradians":
-            return np.convolve(self.dataX, np.ones(5) / 5, mode='valid') / self.conversion_factor * np.pi * 1e3 / 648, np.convolve(self.dataY, np.ones(5) / 5, mode='valid') / self.conversion_factor * np.pi * 1e3 / 648
-        else:
-            raise Exception("Unit not recognized")
+        return self.time
 
     def clear_data(self):
         """
@@ -73,55 +72,29 @@ class ContinousDataStorage:
 
 # Todo handle multiple peaks
 class POIDataStorage:
-    def __init__(self, Heigth, Width, conversion_factor):
+    def __init__(self, conversion_factor):
         """
         Initialize the data storage
         """
-        self.Heigth = Heigth
-        self.Width = Width
         self.dataX = []
         self.dataY = []
         self.timestamp = []
         self.sample_num = []
-        self.offsetX = Width / 2
-        self.offsetY = Heigth / 2
         self.conversion_factor = conversion_factor
 
-    def new_data(self, index, dataX, dataY):
+    def new_data(self, dataX, dataY):
         """
-        Override specific value or add a new one in the data storage.
-        :param index: The index of the value to be overridden
-        :param dataX: The X value to be added
-        :param dataY: The Y value to be added
+        Add new data to the storage.
+        :param values_X: The list of X values in Pixels to be added
+        :param values_Y: The list of Y values in Pixels to be added
         """
-        value_X = np.average(checkdata(dataX))
-        value_Y = np.average(checkdata(dataY))
-        if 0 <= index < len(self.dataX):
-            self.dataX[index] = value_X - self.offsetX
-            self.dataY[index] = value_Y - self.offsetY
-            self.timestamp[index] = time.time_ns()
-            self.sample_num[index] = 1
-        elif index == len(self.dataX):
-            self.dataX.append(value_X - self.offsetX)
-            self.dataY.append(value_Y - self.offsetY)
+        if len(dataX) > 10 or len(dataY) > 10:
+            raise ValueError("Cannot store more than 10 values at a time")
+        else:
+            self.dataX.append([value for value in dataX])
+            self.dataY.append([value for value in dataY])
             self.timestamp.append(time.time_ns())
             self.sample_num.append(1)
-        else:
-            raise Exception("Index out of range")
-
-    def checkdata(self, values):
-        """
-        Check if the value is within the range of the image
-        :param index: The index of the value to be checked
-        :param values: Vector of values to be checked
-        """
-        checked_values = []
-        for value in values:
-            if value is not nan and value <= self.Heigth and value >= 0:
-                checked_values.append(value)
-        if not checked_values:
-            raise warnings.warn("No valid values")
-        return checked_values
 
     def average_data(self, index, dataX, dataY):
         """
@@ -132,70 +105,75 @@ class POIDataStorage:
         :param dataY: The Y value to be added
         :return: The average value of the stored data
         """
-        value_X = np.average(checkdata(dataX))
-        value_Y = np.average(checkdata(dataY))
+        if len(dataX) > 10 or len(dataY) > 10:
+            raise ValueError("Cannot store more than 10 values at a time")
         if 0 <= index < len(self.dataX):
-            self.dataX[index] = (self.dataX[index] * self.sample_num[index] + value_X[0]) / (self.sample_num[index] + 1)
-            self.dataY[index] = (self.dataY[index] * self.sample_num[index] + value_Y[1]) / (self.sample_num[index] + 1)
+            self.dataX[index] = (self.dataX[index] * self.sample_num[index] + dataX[0]) / (self.sample_num[index] + 1)
+            self.dataY[index] = (self.dataY[index] * self.sample_num[index] + dataY[1]) / (self.sample_num[index] + 1)
             self.timestamp[index] = time.time_ns()
             self.sample_num[index] += 1
         else:
-            raise Exception("Index out of range")
+            warnings.warn("Index out of range")
 
-    def get_data(self, index, unit="Arcseconds"):
+    def get_data(self, unit="Arcseconds"):
         """
         Retrieve all data from the storage.
-        :param index: The index of the data to be returned (optional)
         :param unit: The unit of the data to be returned, default is Arcseconds, can be pixels or microradians
-        :return: The stored data
+        :return: A list of all stored data in the specified unit
         """
-        if index is not none and index < len(self.dataX):
-            if unit == "Arcseconds":
-                return self.dataX[index] * self.conversion_factor, self.dataY[index] * self.conversion_factor
-            elif unit == "Pixels":
-                return self.dataX[index], self.dataY[index]
-            elif unit == "Microradians":
-                return self.dataX[index] / self.conversion_factor * np.pi * 1e3 / 648, self.dataY[index] / self.conversion_factor * np.pi * 1e3 / 648
-            else:
-                raise Exception("Unit not recognized")
-        elif index >= len(self.dataX):
-            raise exception("Index out of range")
+        if unit == "Arcseconds":
+            return [[x * self.conversion_factor for x in sublist] for sublist in self.dataX], \
+                [[y * self.conversion_factor for y in sublist] for sublist in self.dataY]
+        elif unit == "Pixels":
+            return self.dataX, self.dataY
+        elif unit == "Microradians":
+            return [[x / self.conversion_factor * np.pi * 1e3 / 648 for x in sublist] for sublist in self.dataX], \
+                [[y / self.conversion_factor * np.pi * 1e3 / 648 for y in sublist] for sublist in self.dataY]
         else:
-            if unit == "Arcseconds":
-                return self.dataX * self.conversion_factor, self.dataY * self.conversion_factor
-            elif unit == "Pixels":
-                return self.dataX, self.dataY
-            elif unit == "Microradians":
-                return self.dataX / self.conversion_factor * np.pi * 1e3 / 648, self.dataY / self.conversion_factor * np.pi * 1e3 / 648
-            else:
-                raise Exception("Unit not recognized")
+            raise Exception("Unit not recognized")
 
-
-    def get_data_detrended(self, index, unit="Arcseconds"):
+    def get_data_detrended(self, index=None, unit="Arcseconds"):
         """
-        Retrieve all data from the storage.
+        Retrieve all detrended data from the storage.
         :param index: The index of the data to be returned (optional)
         :param unit: The unit of the data to be returned, default is Arcseconds, can be pixels or microradians
         :return: The stored detrended data
         """
-        if index is not none and index < len(self.dataX):
-            if unit == "Arcseconds":
-                return self.dataX[index] * self.conversion_factor - np.polyval(np.polyfit(self.timestamp, self.dataX, 1), self.timestamp), self.dataY[index] * self.conversion_factor - np.polyval(np.polyfit(self.timestamp, self.dataY, 1), self.timestamp)
-            elif unit == "Pixels":
-                return self.dataX[index] - np.polyval(np.polyfit(self.timestamp, self.dataX, 1), self.timestamp), self.dataY[index] - np.polyval(np.polyfit(self.timestamp, self.dataY, 1), self.timestamp)
-            elif unit == "Microradians":
-                return self.dataX[index] / self.conversion_factor * np.pi * 1e3 / 648 - np.polyval(np.polyfit(self.timestamp, self.dataX, 1), self.timestamp), self.dataY[index] / self.conversion_factor * np.pi * 1e3 / 648 - np.polyval(np.polyfit(self.timestamp, self.dataY, 1), self.timestamp)
+
+        def detrend(data, timestamps):
+            trend = np.polyval(np.polyfit(timestamps, data, 1), timestamps)
+            return [value - trend for value, trend in zip(data, trend)]
+
+        if index is not None:
+            if index < len(self.dataX):
+                if unit == "Arcseconds":
+                    return detrend([x * self.conversion_factor for x in self.dataX[index]], self.timestamp), \
+                        detrend([y * self.conversion_factor for y in self.dataY[index]], self.timestamp)
+                elif unit == "Pixels":
+                    return detrend(self.dataX[index], self.timestamp), \
+                        detrend(self.dataY[index], self.timestamp)
+                elif unit == "Microradians":
+                    return detrend([x / self.conversion_factor * np.pi * 1e3 / 648 for x in self.dataX[index]],
+                                   self.timestamp), \
+                        detrend([y / self.conversion_factor * np.pi * 1e3 / 648 for y in self.dataY[index]],
+                                self.timestamp)
+                else:
+                    raise Exception("Unit not recognized")
             else:
-                raise Exception("Unit not recognized")
-        elif index >= len(self.dataX):
-            raise exception("Index out of range")
+                raise Exception("Index out of range")
         else:
             if unit == "Arcseconds":
-                return self.dataX * self.conversion_factor - np.polyval(np.polyfit(self.timestamp, self.dataX, 1), self.timestamp), self.dataY * self.conversion_factor - np.polyval(np.polyfit(self.timestamp, self.dataY, 1), self.timestamp)
+                return [detrend([x * self.conversion_factor for x in sublist], self.timestamp) for sublist in
+                        self.dataX], \
+                    [detrend([y * self.conversion_factor for y in sublist], self.timestamp) for sublist in self.dataY]
             elif unit == "Pixels":
-                return self.dataX - np.polyval(np.polyfit(self.timestamp, self.dataX, 1), self.timestamp), self.dataY - np.polyval(np.polyfit(self.timestamp, self.dataY, 1), self.timestamp)
+                return [detrend(sublist, self.timestamp) for sublist in self.dataX], \
+                    [detrend(sublist, self.timestamp) for sublist in self.dataY]
             elif unit == "Microradians":
-                return self.dataX / self.conversion_factor * np.pi * 1e3 / 648 - np.polyval(np.polyfit(self.timestamp, self.dataX, 1), self.timestamp), self.dataY / self.conversion_factor * np.pi * 1e3 / 648 - np.polyval(np.polyfit(self.timestamp, self.dataY, 1), self.timestamp)
+                return [detrend([x / self.conversion_factor * np.pi * 1e3 / 648 for x in sublist], self.timestamp) for
+                        sublist in self.dataX], \
+                    [detrend([y / self.conversion_factor * np.pi * 1e3 / 648 for y in sublist], self.timestamp) for
+                     sublist in self.dataY]
             else:
                 raise Exception("Unit not recognized")
 

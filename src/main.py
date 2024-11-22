@@ -8,6 +8,7 @@ from win_live import AutocollimatorLiveWindow
 from win_straightness import StraightnessMeasurementWindow
 from data_storage import ContinousDataStorage
 from data_storage import POIDataStorage
+from Calibration import Corrector
 import warnings
 
 # Constants for conversion from pixels to arcseconds
@@ -15,81 +16,59 @@ PIXEL_PITCH = 3.45e-6  # in meters
 FOCAL_LENGTH = 0.385  # in meters
 CONVERSION_FACTOR = PIXEL_PITCH / (2 * FOCAL_LENGTH) * 180 / np.pi * 3600
 
+# Init Frame Storage
+image_frame_storage = []
+
 # Initialize the camera
 camera = CameraManager("Basler")
 
 # Initialize the ImageProcessor instance
-processor = ImageProcessor("Gaussian")
+imagewidth, imageheight = camera.get_image_size()
+processor = ImageProcessor("Gaussian", imagewidth, imageheight)
+
+# Initialize the corrector
+target_x = 0
+actual_x = 0
+target_y = 0
+actual_y = 0
+Corrector = Corrector(target_x, actual_x, target_y, actual_y)
 
 # Initialize PyQtGraph application
 app = QtWidgets.QApplication([])
 
 # Initialize the data storage
-imagewidth, imageheight = camera.get_image_size()
-ContinousDataStorage = ContinousDataStorage(imagewidth, imageheight, CONVERSION_FACTOR)
+ContinousDataStorage = ContinousDataStorage(CONVERSION_FACTOR)
 
-#Initialize the data storage for straightness measurements
-straightness_data = POIDataStorage(imagewidth, imageheight, CONVERSION_FACTOR)
+# Initialize the data storage for straightness measurements
+straightness_data = POIDataStorage(CONVERSION_FACTOR)
 
 # Create and show the Autocollimator live window
-autocollimator_live_window = AutocollimatorLiveWindow(processor, CONVERSION_FACTOR, app)
+autocollimator_live_window = AutocollimatorLiveWindow(app, image_frame_storage, ContinousDataStorage)
 autocollimator_live_window.win.show()
 
 # Create and show the Straightness Measurement window
-straightness_measurement_window = StraightnessMeasurementWindow(app, autocollimator_live_window)
+straightness_measurement_window = StraightnessMeasurementWindow(app, straightness_data, ContinousDataStorage)
 straightness_measurement_window.win.show()
+
 
 # Function to grab frames and process them
 def grab_and_process():
     while True:
-        frame = camera.retrieve_frame()
+        image_frame_storage = camera.retrieve_frame()
 
         # Calculate the brightest pixel value
-        #brightest_pixel_value = np.max(frame)
-        #print(f"Brightest Pixel Value: {brightest_pixel_value}")
-
-        # Update frame count for FPS calculation
-        autocollimator_live_window.frame_count += 1
+        # brightest_pixel_value = np.max(frame)
+        # print(f"Brightest Pixel Value: {brightest_pixel_value}")
 
         # Process the frame using the ImageProcessor
-        peak_x, peak_y = processor.process_frame(frame)
+        peaks_x, peaks_y = processor.process_frame(image_frame_storage)
 
-        # Zero the peak positions
-        peak_x -= autocollimator_live_window.zero_x
-        peak_y -= autocollimator_live_window.zero_y
+        # Correct for linearity
+        peaks_x, peaks_y = Corrector.correct(peaks_x, peaks_y)
 
-        # Store peak positions
-        autocollimator_live_window.peak_x_history.append(
-            ((time.time_ns() - autocollimator_live_window.average_start_time) / 6e10, peak_x_arcsec))
-        autocollimator_live_window.peak_y_history.append(
-            ((time.time_ns() - autocollimator_live_window.average_start_time) / 6e10, peak_y_arcsec))
+        # Shove the data into the data storage
+        ContinousDataStorage.new_data(peaks_x, peaks_y)
 
-        # Update the latest frame and peaks
-        autocollimator_live_window.latest_frame = frame
-        autocollimator_live_window.latest_peak_x = peak_x_arcsec if not np.isnan(
-            peak_x_arcsec) else autocollimator_live_window.latest_peak_x
-        autocollimator_live_window.latest_peak_y = peak_y_arcsec if not np.isnan(
-            peak_y_arcsec) else autocollimator_live_window.latest_peak_y
-
-        # Print the determined values
-        print(f"X Direction: Mean={peak_x_arcsec:.2f} arcseconds")
-        print(f"Y Direction: Mean={peak_y_arcsec:.2f} arcseconds")
-
-        # Handle averaging
-        if autocollimator_live_window.averaging:
-            current_time = time.time()
-            if current_time - autocollimator_live_window.average_start_time <= 3:
-                if not np.isnan(peak_x_arcsec):
-                    autocollimator_live_window.average_x_values.append(peak_x_arcsec)
-                if not np.isnan(peak_y_arcsec):
-                    autocollimator_live_window.average_y_values.append(peak_y_arcsec)
-            else:
-                autocollimator_live_window.averaging = False
-                avg_x = np.mean(
-                    autocollimator_live_window.average_x_values) if autocollimator_live_window.average_x_values else 0
-                avg_y = np.mean(
-                    autocollimator_live_window.average_y_values) if autocollimator_live_window.average_y_values else 0
-                autocollimator_live_window.average_display.setText(f"Averaged Values: X = {avg_x:.2f}, Y = {avg_y:.2f}")
 
 # Start a thread for grabbing and processing frames
 thread = threading.Thread(target=grab_and_process)

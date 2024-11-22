@@ -1,22 +1,22 @@
-# win_live.py
-
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtWidgets
-from PyQt5.QtGui import QPixmap, QScreen
 import numpy as np
 import time
 import utils
+from PyQt5 import QtWidgets, QtCore
+import pyqtgraph as pg
+
 
 class AutocollimatorLiveWindow:
-    def __init__(self, processor, conversion_factor, app):
-        self.processor = processor
-        self.conversion_factor = conversion_factor
+    def __init__(self, app, image_frame_storage, data_storage):
+        self.app = app
+        self.image_frame_storage = image_frame_storage
+        self.data_storage = data_storage
 
         # Initialize data storage
         self.peak_x_history = []
         self.peak_y_history = []
         self.zero_x = 0
         self.zero_y = 0
+        self.zero_time = 0
         self.averaging = False
         self.average_start_time = time.time_ns()
         self.average_x_values = []
@@ -32,9 +32,6 @@ class AutocollimatorLiveWindow:
         self.start_time = time.time()
 
         # Initialize PyQtGraph application
-        self.app = app
-
-        # Create a window with a layout
         self.win = QtWidgets.QMainWindow()
         self.win.setWindowTitle("Autocollimator live")
         central_widget = QtWidgets.QWidget()
@@ -95,13 +92,9 @@ class AutocollimatorLiveWindow:
         button_layout = QtWidgets.QHBoxLayout()
         right_layout.addLayout(button_layout)
 
-        # Create a button to zero peak position values and reset the X plot
-        self.button_reset_x = QtWidgets.QPushButton("Reset X Peak Position")
-        button_layout.addWidget(self.button_reset_x)
-
-        # Create a button to zero peak position values and reset the Y plot
-        self.button_reset_y = QtWidgets.QPushButton("Reset Y Peak Position")
-        button_layout.addWidget(self.button_reset_y)
+        # Create a button to reset peak position values
+        self.button_reset_peaks = QtWidgets.QPushButton("Reset Peak Positions")
+        button_layout.addWidget(self.button_reset_peaks)
 
         # Create a button to start averaging measurements
         self.button_average = QtWidgets.QPushButton("Take Average")
@@ -121,8 +114,7 @@ class AutocollimatorLiveWindow:
         self.button_save_image_1.clicked.connect(lambda: utils.save_window_as_image(self.win, self.app))
 
         # Connect buttons to their respective functions
-        self.button_reset_x.clicked.connect(self.reset_x_peak_position)
-        self.button_reset_y.clicked.connect(self.reset_y_peak_position)
+        self.button_reset_peaks.clicked.connect(self.reset_peak_positions)
         self.button_average.clicked.connect(self.start_averaging)
 
         # Set up a timer to call the update function every 40 milliseconds
@@ -131,45 +123,39 @@ class AutocollimatorLiveWindow:
         self.timer.start(40)  # 40 milliseconds
 
     def update_plots(self):
-        if self.latest_frame is not None:
+        if self.image_frame_storage is not None:
+            self.latest_frame = self.image_frame_storage[-1]
             self.img_item.setImage(self.latest_frame.T)
             self.curve_intensity_x.setData(np.sum(self.latest_frame, axis=0))
-            self.peak_line_x.setValue(self.latest_peak_x)
             self.curve_intensity_y.setData(np.sum(self.latest_frame, axis=1))
-            self.peak_line_y.setValue(self.latest_peak_y)
-            self.curve_peak_x.setData(*zip(*self.peak_x_history))
-            self.curve_peak_y.setData(*zip(*self.peak_y_history))
 
-        # Update FPS display
-        current_time = time.time()
-        elapsed_time = current_time - self.start_time
-        if elapsed_time > 3:
-            fps = self.frame_count / elapsed_time
-            self.fps_display.setText(f"FPS: {fps:.2f}")
-            self.frame_count = 0
-            self.start_time = current_time
+        if self.data_storage:
+            data_x, data_y = self.data_storage.get_data(unit="Arcseconds")
+            timestamps = self.data_storage.get_timestamp(None)
+            self.peak_x_history = [(t, x) for t, sublist in zip(timestamps, data_x) for x in sublist if
+                                   t >= self.zero_time]
+            self.peak_y_history = [(t, y) for t, sublist in zip(timestamps, data_y) for y in sublist if
+                                   t >= self.zero_time]
+            self.curve_peak_x.setData([t for t, x in self.peak_x_history],
+                                      [x - self.zero_x for t, x in self.peak_x_history])
+            self.curve_peak_y.setData([t for t, y in self.peak_y_history],
+                                      [y - self.zero_y for t, y in self.peak_y_history])
 
-    def reset_x_peak_position(self):
+        # Update FPS display using timestamps
+        current_time = time.time_ns()
+        three_seconds_ago = current_time - 3 * 1e9
+        recent_frames = [t for t in self.data_storage.get_timestamp(None) if t >= three_seconds_ago]
+        fps = len(recent_frames) / 3
+        self.fps_display.setText(f"FPS: {fps:.2f}")
+
+    def reset_peak_positions(self):
         """
-        Reset the peak position in the X direction
+        Reset the peak positions in both X and Y directions
         """
         self.zero_x = self.latest_peak_x
-        self.peak_x_history = []
-        self.curve_peak_x.setData(self.peak_x_history)
-        self.curve_intensity_x.setData(np.zeros(self.plot_frame.width()))
-        self.start_time = time.time_ns()
-
-    def reset_y_peak_position(self):
-        """
-        Reset the peak position in the Y direction
-        """
         self.zero_y = self.latest_peak_y
-        self.peak_y_history = []
-        self.curve_peak_y.setData(self.peak_y_history)
-        self.curve_intensity_y.setData(np.zeros(self.plot_frame.height()))
-        self.start_time = time.time_ns()
+        self.zero_time = time.time_ns()
 
-#Todo Fix this shit
     def start_averaging(self):
         """
         Start averaging peak positions
