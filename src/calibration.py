@@ -18,9 +18,18 @@ class Corrector:
         self.correction_y = griddata((target_x, target_y), actual_y, (self.grid_x, self.grid_y), method='cubic')
 
     def get_correction(self, x, y):
-        # Find the nearest correction value for the given position
-        correction_x = griddata((self.grid_x.flatten(), self.grid_y.flatten()), self.correction_x.flatten(), (x, y),
-                                method='cubic')
-        correction_y = griddata((self.grid_x.flatten(), self.grid_y.flatten()), self.correction_y.flatten(), (x, y),
-                                method='cubic')
-        return correction_x, correction_y
+        """
+        Get the correction values for the given position
+        :param x:
+        :param y:
+        :return:
+        """
+        if target_x is None or target_y is None or actual_x is None or actual_y is None:
+            return x, y
+        else:
+            # Find the nearest correction value for the given position
+            correction_x = griddata((self.grid_x.flatten(), self.grid_y.flatten()), self.correction_x.flatten(), (x, y),
+                                    method='cubic')
+            correction_y = griddata((self.grid_x.flatten(), self.grid_y.flatten()), self.correction_y.flatten(), (x, y),
+                                    method='cubic')
+            return correction_x, correction_y

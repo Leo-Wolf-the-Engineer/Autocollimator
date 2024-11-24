@@ -8,7 +8,7 @@ from win_live import AutocollimatorLiveWindow
 from win_straightness import StraightnessMeasurementWindow
 from data_storage import ContinousDataStorage
 from data_storage import POIDataStorage
-from Calibration import Corrector
+from calibration import Corrector
 import warnings
 
 # Constants for conversion from pixels to arcseconds
@@ -27,11 +27,11 @@ imagewidth, imageheight = camera.get_image_size()
 processor = ImageProcessor("Gaussian", imagewidth, imageheight)
 
 # Initialize the corrector
-target_x = 0
-actual_x = 0
-target_y = 0
-actual_y = 0
-Corrector = Corrector(target_x, actual_x, target_y, actual_y)
+#target_x = []
+#actual_x = []
+#target_y = []
+#actual_y = []
+#Corrector = Corrector(target_x, actual_x, target_y, actual_y)
 
 # Initialize PyQtGraph application
 app = QtWidgets.QApplication([])
