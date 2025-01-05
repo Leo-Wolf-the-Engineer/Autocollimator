@@ -3,7 +3,6 @@ from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 import cv2
 
-
 # Todo: Handle Multiple Peaks
 class ImageProcessor:
     def __init__(self, processor_type, Width, Heigth):
@@ -33,25 +32,39 @@ class ImageProcessor:
     def process_frame(self, frame):
         """
         Process the frame using the selected processor
+        Values are then centered around the center of the frame
         :param frame: The input image frame
         :return: The calculated peak positions in Pixels
         """
         frame = self.convert_to_grayscale(frame)
         values_X, values_Y = self.Processor.process_frame(frame)
+
+        # Ensure values_X and values_Y are iterable
+        if not isinstance(values_X, (list, np.ndarray)):
+            values_X = [values_X]
+        if not isinstance(values_Y, (list, np.ndarray)):
+            values_Y = [values_Y]
+
         if len(values_X) > 10 or len(values_Y) > 10:
             raise ValueError("Cannot store more than 10 values at a time")
         else:
             for value in values_X:
-                if value == np.nan or value > self.Width or value < 0:
+                if np.isnan(value) or value > self.Width or value < 0:
                     values_X.remove(value)
                     values_Y.remove(value)
-                    warnings.warn("Removing Nan or out of range value Pair...")
+                    warnings.warn("Removing NaN or out of range value Pair...")
             for value in values_Y:
-                if value == np.nan or value > self.Heigth or value < 0:
+                if np.isnan(value) or value > self.Heigth or value < 0:
                     values_X.remove(value)
                     values_Y.remove(value)
-                    warnings.warn("Removing Nan or out of range value Pair...")
-        return values_X - Width / 2, values_Y - Heigth / 2
+                    warnings.warn("Removing NaN or out of range value Pair...")
+
+        # Convert lists to NumPy arrays for element-wise operations
+        values_X = np.array(values_X)
+        values_Y = np.array(values_Y)
+
+        # Center the values around the center of the frame and return
+        return values_X - self.Width / 2, values_Y - self.Heigth / 2
 
     def convert_to_grayscale(self, frame):
         """

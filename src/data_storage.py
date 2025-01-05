@@ -22,25 +22,14 @@ class ContinousDataStorage:
         if len(values_X) > 10 or len(values_Y) > 10:
             raise ValueError("Cannot store more than 10 values at a time")
         else:
-            for value in values_X:
-                if value == np.nan or value > self.Width or value < 0:
-                    values_X.remove(value)
-                    values_Y.remove(value)
-                    warnings.warn("Removing Nan or out of range value Pair...")
-            for value in values_Y:
-                if value == np.nan or value > self.Heigth or value < 0:
-                    values_X.remove(value)
-                    values_Y.remove(value)
-                    warnings.warn("Removing Nan or out of range value Pair...")
-
-        self.dataX.append([value - self.offsetX for value in values_X])
-        self.dataY.append([value - self.offsetY for value in values_Y])
-        self.time.append(time.time_ns())
+            self.dataX.append([value for value in values_X])
+            self.dataY.append([value for value in values_Y])
+            self.time.append(time.time_ns())
 
     def get_data(self, unit="Arcseconds"):
         """
         Retrieve all data from the storage.
-        :param unit: The unit of the data to be returned, default is Arcseconds, can be pixels or microradians
+        :param unit: The unit of the data to be returned, default is Arcseconds, can be Pixels or Microradians
         :return: A list of all stored data in the specified unit
         """
         if unit == "Arcseconds":

@@ -1,8 +1,8 @@
 from pypylon import pylon
-import numpy as np
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore, QtWidgets
 import numpy as np
+import cv2
 import time
 
 class CameraManager:
@@ -67,17 +67,17 @@ class BaslerCamera:
         # Open the camera
         self.camera.Open()
 
-        # Set the pixel format to Mono12p
+        # Set the pixel format
         self.camera.PixelFormat.SetValue('Mono8')
 
         # Set the width and height
         self.camera.Width.SetValue(1936)
         self.camera.Height.SetValue(1216)
 
-        # Set the exposure time mode to UltraShort
+        # Set the exposure time mode
         self.camera.BslExposureTimeMode.SetValue('Standard') #UltraShort / Standard
 
-        # Set the exposure time to 5.0 microseconds
+        # Set the exposure time
         self.camera.ExposureTime.SetValue(20000.0)
 
         # Start grabbing images
@@ -156,5 +156,37 @@ def testing():
     # Close the camera when the application is closed
     camera_manager.close()
 
+def captureIntoVideo():
+    # Captures the video from the camera and saves it to a file
+    # Initialize CameraManager with "Basler"
+    camera_manager = CameraManager("Basler")
+
+    # Initialize the video writer
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter('output.avi', fourcc, 40.0, (1936, 1216), isColor=False)
+
+    start_time = time.time()
+
+    try:
+        # Capture the video
+        while True:
+            frame = camera_manager.retrieve_frame()
+            # Convert frame to 8-bit grayscale if necessary
+            if frame.dtype != np.uint8:
+                frame = cv2.convertScaleAbs(frame)
+            out.write(frame)
+            # Stop recording after 5 seconds
+            if time.time() - start_time > 20:
+                break
+    except KeyboardInterrupt:
+        print("Video capture interrupted. Cleaning up...")
+    finally:
+        # Add a delay to ensure all frames are written
+        time.sleep(1)
+        # Close the camera and release the video writer
+        camera_manager.close()
+        out.release()
+
 if __name__ == "__main__":
-    testing()
+    #testing()
+    captureIntoVideo()
