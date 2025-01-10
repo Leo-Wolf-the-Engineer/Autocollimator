@@ -12,8 +12,8 @@ class CameraManager:
         The type of camera to use. Must be either 'Basler' or 'USB'
     """
     def __init__(self, camera_type: str) -> None:
-        if camera_type not in ["Basler", "USB"]:
-            raise ValueError("camera_type must be either 'Basler' or 'USB'")
+        if camera_type not in ["Basler", "USB", "AVI"]:
+            raise ValueError("camera_type must be either 'Basler', 'USB' or 'AVI'")
         self.camera_type = camera_type
         self.camera = None
 
@@ -22,6 +22,9 @@ class CameraManager:
 
         if camera_type == "USB":
             raise Exception("camera_type USB is not implemented yet")
+
+        if camera_type == "AVI":
+            self.camera = AVIReader("20250106_10um_crosshair.avi")
 
     def get_image_size(self) -> tuple:
         """
@@ -36,10 +39,14 @@ class CameraManager:
     def retrieve_frame(self) -> np.ndarray:
         """
         Retrieve a frame from the camera
+        collapes RGB to grayscale if necessary
         :return: np.ndarray
         """
         if self.camera is not None:
-            return self.camera.retrieve_frame()
+            frame = self.camera.retrieve_frame()
+            if len(frame.shape) == 3:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            return frame
         else:
             raise Exception("No camera initialized")
 
@@ -116,9 +123,35 @@ class BaslerCamera:
         # Close the camera
         self.camera.Close()
 
+class AVIReader:
+    """
+    AVIReader class to read frames from an AVI file
+    """
+    def __init__(self, video_path):
+        self.video_filename = "20250106_10um_crosshair.avi"
+        self.cap = cv2.VideoCapture(video_path)
+        if not self.cap.isOpened():
+            raise ValueError(f"Cannot open video file: {video_path}")
+        self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+        self.frame_interval = 1.0 / self.fps
+
+    def retrieve_frame(self):
+        ret, frame = self.cap.read()
+        if not ret:
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Restart the video
+            ret, frame = self.cap.read()
+        return frame
+
+    def get_image_size(self):
+        width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        return width, height
+    def close(self):
+        self.cap.release()
+
 def testing():
     # Initialize CameraManager with "Basler"
-    camera_manager = CameraManager("Basler")
+    camera_manager = CameraManager("AVI")
 
     # Initialize PyQtGraph application
     app = QtWidgets.QApplication([])
@@ -175,7 +208,7 @@ def captureIntoVideo():
             if frame.dtype != np.uint8:
                 frame = cv2.convertScaleAbs(frame)
             out.write(frame)
-            # Stop recording after 5 seconds
+            # Stop recording after x seconds
             if time.time() - start_time > 20:
                 break
     except KeyboardInterrupt:
@@ -188,5 +221,5 @@ def captureIntoVideo():
         out.release()
 
 if __name__ == "__main__":
-    #testing()
-    captureIntoVideo()
+    testing()
+    #captureIntoVideo()

@@ -1,45 +1,43 @@
+import threading
+import queue
+import logging
+from PyQt5 import QtWidgets, QtCore
+import pyqtgraph as pg
 import numpy as np
 import time
 import utils
-from PyQt5 import QtWidgets, QtCore
-import pyqtgraph as pg
 from data_storage import ContinousDataStorage
-import logging
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
+class FFmpegThread(threading.Thread):
+    def __init__(self, task_queue):
+        super().__init__()
+        self.task_queue = task_queue
+        self.running = True
+
+    def run(self):
+        while self.running:
+            try:
+                task = self.task_queue.get(timeout=1)
+                if task is None:
+                    break
+                # Perform FFmpeg operations here
+                # Example: process_frame(task)
+            except queue.Empty:
+                continue
+
+    def stop(self):
+        self.running = False
+        self.task_queue.put(None)
+
 class AutocollimatorLiveWindow:
-    def __init__(self, app, image_frame_storage, data_storage):
-        """
-        Initialize the Autocollimator live window
-        :param app:
-        :param image_frame_storage:
-        :param data_storage:
-        """
+    def __init__(self, app, image_frame_storage, data_storage, task_queue):
         self.app = app
         self.image_frame_storage = image_frame_storage
         self.data_storage = data_storage
-
-        # Initialize data storage
-        self.peak_x_history = []
-        self.peak_y_history = []
-        self.zero_x = 0
-        self.zero_y = 0
-        self.zero_time = 0
-        self.averaging = False
-        self.average_start_time = time.time_ns()
-        self.average_x_values = []
-        self.average_y_values = []
-
-        # Variables to store the latest frame and peaks
-        self.latest_frame = None
-        self.latest_peak_x = 0
-        self.latest_peak_y = 0
-
-        # Variables for FPS calculation
-        self.frame_count = 0
-        self.start_time = time.time()
+        self.task_queue = task_queue
 
         # Initialize PyQtGraph application
         logging.debug("Initialize PyQtGraph Window")
@@ -140,9 +138,10 @@ class AutocollimatorLiveWindow:
         logging.debug("Set up timer")
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_plots)
-        self.timer.start(40)  # 40 milliseconds
+        self.timer.start(40)
 
     def update_plots(self):
+        logging.debug("update_plots called")
         if self.image_frame_storage:
             self.latest_frame = self.image_frame_storage[-1]
             if self.latest_frame is not None:
@@ -175,30 +174,40 @@ class AutocollimatorLiveWindow:
         self.fps_display.setText(f"FPS: {fps:.2f}")
 
     def reset_peak_positions(self):
-        """
-        Reset the peak positions in both X and Y directions
-        """
         self.zero_x = self.latest_peak_x
         self.zero_y = self.latest_peak_y
         self.zero_time = time.time_ns()
 
     def start_averaging(self):
-        """
-        Start averaging peak positions
-        """
         self.averaging = True
         self.average_start_time = time.time_ns()
         self.average_x_values = []
         self.average_y_values = []
 
+class AutocollimatorLiveWindowThread(threading.Thread):
+    def __init__(self, image_frame_storage, data_storage):
+        super().__init__()
+        self.image_frame_storage = image_frame_storage
+        self.data_storage = data_storage
+        self.task_queue = queue.Queue()
+        self.ffmpeg_thread = FFmpegThread(self.task_queue)
+
+    def run(self):
+        self.app = QtWidgets.QApplication([])
+        self.window = AutocollimatorLiveWindow(self.app, self.image_frame_storage, self.data_storage, self.task_queue)
+        self.window.win.show()
+
+        logging.debug("Thread started")
+        self.ffmpeg_thread.start()
+        self.app.exec_()
+        self.ffmpeg_thread.stop()
+        self.ffmpeg_thread.join()
+
 def testing():
-    # launch the live window
-    app = QtWidgets.QApplication([])
     image_frame_storage = []
     data_storage = ContinousDataStorage(1)
-    autocollimator_live_window = AutocollimatorLiveWindow(app, image_frame_storage, data_storage)
-    autocollimator_live_window.win.show()
-    app.exec_()
+    live_window_thread = AutocollimatorLiveWindowThread(image_frame_storage, data_storage)
+    live_window_thread.start()
 
 if __name__ == "__main__":
     testing()

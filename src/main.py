@@ -4,7 +4,7 @@ from PyQt5 import QtWidgets
 import threading
 from image_aquisition import CameraManager
 from image_processing import ImageProcessor
-from win_live import AutocollimatorLiveWindow
+from win_live import AutocollimatorLiveWindowThread
 from win_straightness import StraightnessMeasurementWindow
 from data_storage import ContinousDataStorage
 from data_storage import POIDataStorage
@@ -26,7 +26,7 @@ CONVERSION_FACTOR = PIXEL_PITCH / (2 * FOCAL_LENGTH) * 180 / np.pi * 3600
 image_frame_storage = []
 
 # Initialize the camera
-camera = CameraManager("Basler")
+camera = CameraManager("AVI")
 
 # Initialize the ImageProcessor instance
 imagewidth, imageheight = camera.get_image_size()
@@ -50,9 +50,6 @@ app = QtWidgets.QApplication([])
 
 # Create and show the Autocollimator live window
 #logging.debug("Create the Autocollimator live window")
-autocollimator_live_window = AutocollimatorLiveWindow(app, image_frame_storage, ContinousStorage)
-logging.debug("Show the Autocollimator live window")
-autocollimator_live_window.win.show()
 
 # Initialize the data storage for straightness measurements
 straightness_data = POIDataStorage(CONVERSION_FACTOR)
@@ -70,6 +67,7 @@ def grab_and_process():
         try:
             # Retrieve frame from camera
             frame = camera.retrieve_frame()
+            print()
             image_frame_storage.clear()  # Clear the storage to keep only the latest frame
             image_frame_storage.append(frame)
 
@@ -95,6 +93,10 @@ def grab_and_process():
 thread = threading.Thread(target=grab_and_process)
 thread.daemon = True
 thread.start()
+
+# Create and start the Autocollimator live window thread
+live_window_thread = AutocollimatorLiveWindowThread(image_frame_storage, ContinousStorage)
+live_window_thread.start()
 
 # Start the PyQtGraph application
 app.exec_()
