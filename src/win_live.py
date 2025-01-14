@@ -39,6 +39,13 @@ class AutocollimatorLiveWindow:
         self.data_storage = data_storage
         self.task_queue = task_queue
 
+        # Initialize zero_time and other related attributes
+        self.zero_time = time.time_ns()
+        self.zero_x = 0
+        self.zero_y = 0
+        self.latest_peak_x = 0
+        self.latest_peak_y = 0
+
         # Initialize PyQtGraph application
         logging.debug("Initialize PyQtGraph Window")
         self.win = QtWidgets.QMainWindow()
@@ -141,11 +148,11 @@ class AutocollimatorLiveWindow:
         self.timer.start(40)
 
     def update_plots(self):
-        logging.debug("update_plots called")
+        #logging.debug("update_plots called")
         if self.image_frame_storage:
             self.latest_frame = self.image_frame_storage[-1]
             if self.latest_frame is not None:
-                logging.debug("Displaying the latest frame.")
+                #logging.debug("Displaying the latest frame.")
                 self.img_item.setImage(self.latest_frame.T)
                 self.curve_intensity_x.setData(np.sum(self.latest_frame, axis=0))
                 self.curve_intensity_y.setData(np.sum(self.latest_frame, axis=1))
@@ -156,15 +163,26 @@ class AutocollimatorLiveWindow:
 
         if self.data_storage:
             data_x, data_y = self.data_storage.get_data(unit="Arcseconds")
-            timestamps = self.data_storage.get_timestamp()
-            self.peak_x_history = [(t, x) for t, sublist in zip(timestamps, data_x) for x in sublist if
+            timestamps = [(t - self.zero_time)/60e9 for t in self.data_storage.get_timestamp() if
                                    t >= self.zero_time]
-            self.peak_y_history = [(t, y) for t, sublist in zip(timestamps, data_y) for y in sublist if
-                                   t >= self.zero_time]
+            self.peak_x_history = [(t, x) for t, sublist in zip(timestamps, data_x) for x in sublist]
+            self.peak_y_history = [(t, y) for t, sublist in zip(timestamps, data_y) for y in sublist]
             self.curve_peak_x.setData([t for t, x in self.peak_x_history],
                                       [x - self.zero_x for t, x in self.peak_x_history])
             self.curve_peak_y.setData([t for t, y in self.peak_y_history],
                                       [y - self.zero_y for t, y in self.peak_y_history])
+
+        # Update peak_line_x to the newest peak position
+        if self.peak_x_history:
+            latest_peak_x = self.peak_x_history[-1][1]
+            adjusted_peak_x = latest_peak_x + (self.latest_frame.shape[1] / 2)
+            self.peak_line_x.setValue(adjusted_peak_x)
+
+            # Update peak_line_y to the newest peak position
+        if self.peak_y_history:
+            latest_peak_y = self.peak_y_history[-1][1]
+            adjusted_peak_y = latest_peak_y + (self.latest_frame.shape[0] / 2)
+            self.peak_line_y.setValue(adjusted_peak_y)
 
         # Update FPS display using timestamps
         current_time = time.time_ns()

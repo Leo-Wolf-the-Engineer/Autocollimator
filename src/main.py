@@ -11,6 +11,7 @@ from data_storage import POIDataStorage
 from calibration import Corrector
 import warnings
 import logging
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -61,42 +62,45 @@ straightness_data = POIDataStorage(CONVERSION_FACTOR)
 
 
 # Function to grab frames and process them
-def grab_and_process():
+def grab_and_process(stop_event):
     logging.debug("Starting grab_and_process thread")
-    while True:
+    while not stop_event.is_set():
         try:
-            # Retrieve frame from camera
-            frame = camera.retrieve_frame()
-            print()
+            # Retrieve frames from camera
+            frame = camera.retrieve_frame()  # Assuming this returns a single frame
+            if len(frame.shape) == 3:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            #print(frame)
             image_frame_storage.clear()  # Clear the storage to keep only the latest frame
             image_frame_storage.append(frame)
 
-            #logging.debug("Processing frame")
-            peaks_x, peaks_y = processor.process_frame(image_frame_storage)
-            print(peaks_x, peaks_y)
+            # Process frame
+            frame_array = np.array(image_frame_storage)
+            if frame_array.ndim == 3:
+                frame_array = frame_array.squeeze(axis=0)  # Ensure the correct shape
+            peaks_x, peaks_y = processor.process_frame(frame_array)
+            #print(peaks_x, peaks_y)
 
-            #logging.debug("Correcting for linearity")
-            #peaks_x, peaks_y = Corrector.correct(peaks_x, peaks_y)
-
-            # Shove the data into the data storage
-            #logging.debug("Storing data")
+            # Store the data
             ContinousStorage.new_data(peaks_x, peaks_y)
         except Exception as e:
             logging.error(f"An error occurred: {e}")
             break
-
         # Calculate the brightest pixel value
         # brightest_pixel_value = np.max(frame)
         # print(f"Brightest Pixel Value: {brightest_pixel_value}")
 
+# Create a stop event for the thread
+stop_event = threading.Event()
+
 # Start a thread for grabbing and processing frames
-thread = threading.Thread(target=grab_and_process)
+thread = threading.Thread(target=grab_and_process, args=(stop_event,))
 thread.daemon = True
 thread.start()
 
 # Create and start the Autocollimator live window thread
 live_window_thread = AutocollimatorLiveWindowThread(image_frame_storage, ContinousStorage)
-live_window_thread.start()
+live_window_thread.run()
 
 # Start the PyQtGraph application
 app.exec_()
