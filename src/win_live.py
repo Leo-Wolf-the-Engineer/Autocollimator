@@ -145,7 +145,7 @@ class AutocollimatorLiveWindow:
         logging.debug("Set up timer")
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_plots)
-        self.timer.start(40)
+        self.timer.start(100)
 
     def update_plots(self):
         #logging.debug("update_plots called")

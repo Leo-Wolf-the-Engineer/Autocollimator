@@ -24,7 +24,7 @@ class CameraManager:
             raise Exception("camera_type USB is not implemented yet")
 
         if camera_type == "AVI":
-            self.camera = AVIReader("20250106_10um_crosshair.avi")
+            self.camera = AVIReader("20250106_10um_crosshair_trimmed.avi")
 
     def get_image_size(self) -> tuple:
         """
@@ -47,6 +47,13 @@ class CameraManager:
             if len(frame.shape) == 3:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             return frame
+
+            #if len(frame.shape) == 3 and frame.shape[2] == 3:
+            #    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            #elif len(frame.shape) == 2:
+            #    gray = frame
+            #else:
+            #    raise ValueError("Unexpected number of channels in the input image")
         else:
             raise Exception("No camera initialized")
 
@@ -128,7 +135,7 @@ class AVIReader:
     AVIReader class to read frames from an AVI file
     """
     def __init__(self, video_path):
-        self.video_filename = "20250106_10um_crosshair.avi"
+        #self.video_filename = "20250106_10um_crosshair.avi"
         self.cap = cv2.VideoCapture(video_path)
         if not self.cap.isOpened():
             raise ValueError(f"Cannot open video file: {video_path}")

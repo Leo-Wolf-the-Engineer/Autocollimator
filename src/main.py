@@ -12,6 +12,7 @@ from calibration import Corrector
 import warnings
 import logging
 import time
+import cv2
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -31,7 +32,8 @@ camera = CameraManager("AVI")
 
 # Initialize the ImageProcessor instance
 imagewidth, imageheight = camera.get_image_size()
-processor = ImageProcessor("Gaussian", imagewidth, imageheight)
+
+processor = ImageProcessor("Linefit", imagewidth, imageheight)
 
 # Initialize the corrector
 #logging.debug("")
@@ -68,17 +70,22 @@ def grab_and_process(stop_event):
         try:
             # Retrieve frames from camera
             frame = camera.retrieve_frame()  # Assuming this returns a single frame
-            if len(frame.shape) == 3:
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             #print(frame)
             image_frame_storage.clear()  # Clear the storage to keep only the latest frame
+            #todo change this from a list to a single object thingy
+            #frame = cv2.GaussianBlur(frame, (19, 19), 0)
+            #frame[frame < 130] = 0
             image_frame_storage.append(frame)
 
             # Process frame
             frame_array = np.array(image_frame_storage)
-            if frame_array.ndim == 3:
-                frame_array = frame_array.squeeze(axis=0)  # Ensure the correct shape
+
+            print(np.mean(frame_array))
+            #if frame_array.ndim == 3:
+            #    frame_array = frame_array.squeeze(axis=0)  # Ensure the correct shape
+
             peaks_x, peaks_y = processor.process_frame(frame_array)
+
             #print(peaks_x, peaks_y)
 
             # Store the data
