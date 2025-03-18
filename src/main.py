@@ -1,15 +1,12 @@
-import numpy
 import numpy as np
 from PyQt5 import QtWidgets
 import threading
+import queue
 from image_aquisition import CameraManager
 from image_processing import ImageProcessor
 from win_live import AutocollimatorLiveWindowThread
-from win_straightness import StraightnessMeasurementWindow
 from data_storage import ContinousDataStorage
 from data_storage import POIDataStorage
-from calibration import Corrector
-import warnings
 import logging
 import time
 import cv2
@@ -17,100 +14,100 @@ import cv2
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
 # Constants for conversion from pixels to arcseconds
-#logging.debug("calculating Constants for conversion from pixels to arcseconds")
 PIXEL_PITCH = 3.45e-6  # in meters
 FOCAL_LENGTH = 0.385  # in meters
 CONVERSION_FACTOR = PIXEL_PITCH / (2 * FOCAL_LENGTH) * 180 / np.pi * 3600
 
-# Init Frame Storage
-image_frame_storage = []
+# Thread-safe frame management
+class FrameManager:
+    def __init__(self):
+        self.current_frame = None
+        self.lock = threading.Lock()
 
-# Initialize the camera
+    def update_frame(self, frame):
+        with self.lock:
+            self.current_frame = frame
+
+    def get_frame(self):
+        with self.lock:
+            return self.current_frame.copy() if self.current_frame is not None else None
+
+# Initialize components
+frame_manager = FrameManager()
+frame_queue = queue.Queue(maxsize=5)  # Limit queue size to prevent memory issues
 camera = CameraManager("AVI")
-
-# Initialize the ImageProcessor instance
 imagewidth, imageheight = camera.get_image_size()
-
-processor = ImageProcessor("Linefit", imagewidth, imageheight)
-
-# Initialize the corrector
-#logging.debug("")
-#target_x = []
-#actual_x = []
-#target_y = []
-#actual_y = []
-#Corrector = Corrector(target_x, actual_x, target_y, actual_y)
-
-# Initialize the data storage
-#logging.debug("Initialize the data storage")
+processor = ImageProcessor("Gaussian", imagewidth, imageheight)
 ContinousStorage = ContinousDataStorage(CONVERSION_FACTOR)
-
-# Initialize PyQtGraph application
-#logging.debug("Initialize PyQtGraph application")
+straightness_data = POIDataStorage(CONVERSION_FACTOR)
 app = QtWidgets.QApplication([])
 
-# Create and show the Autocollimator live window
-#logging.debug("Create the Autocollimator live window")
-
-# Initialize the data storage for straightness measurements
-straightness_data = POIDataStorage(CONVERSION_FACTOR)
-
-# Create and show the Straightness Measurement window
-#logging.debug("Create and show the Straightness Measurement window")
-#straightness_measurement_window = StraightnessMeasurementWindow(app, straightness_data, ContinousStorage)
-#straightness_measurement_window.win.show()
-
-
-# Function to grab frames and process them
-def grab_and_process(stop_event):
-    logging.debug("Starting grab_and_process thread")
+# Producer: captures frames from camera
+def frame_producer(stop_event):
+    logging.debug("Starting frame producer thread")
     while not stop_event.is_set():
         try:
-            # Retrieve frames from camera
-            frame = camera.retrieve_frame()  # Assuming this returns a single frame
-            #print(frame)
-            image_frame_storage.clear()  # Clear the storage to keep only the latest frame
-            #todo change this from a list to a single object thingy
-            #frame = cv2.GaussianBlur(frame, (19, 19), 0)
-            #frame[frame < 130] = 0
-            image_frame_storage.append(frame)
+            frame = camera.retrieve_frame()
+            frame_manager.update_frame(frame)  # Update display frame
+
+            # Add to processing queue, non-blocking
+            try:
+                frame_queue.put(frame, block=False)
+            except queue.Full:
+                # Skip frame if queue is full
+                logging.debug("Processing queue full, skipping frame")
+                pass
+
+        except Exception as e:
+            logging.error(f"Producer error: {e}")
+            break
+
+# Consumer: processes frames
+def frame_consumer(stop_event):
+    logging.debug("Starting frame consumer thread")
+    while not stop_event.is_set():
+        try:
+            # Get frame with timeout to check stop_event periodically
+            frame = frame_queue.get(timeout=0.5)
 
             # Process frame
-            frame_array = np.array(image_frame_storage)
+            if frame is not None:
+                #print(f"Mean frame value: {np.mean(frame)}")
+                peaks_x, peaks_y = processor.process_frame(frame)
+                print (f"new peak positions: {peaks_x}, {peaks_y}")
+                ContinousStorage.new_data(peaks_x, peaks_y)
 
-            print(np.mean(frame_array))
-            #if frame_array.ndim == 3:
-            #    frame_array = frame_array.squeeze(axis=0)  # Ensure the correct shape
-
-            peaks_x, peaks_y = processor.process_frame(frame_array)
-
-            #print(peaks_x, peaks_y)
-
-            # Store the data
-            ContinousStorage.new_data(peaks_x, peaks_y)
+            frame_queue.task_done()
+        except queue.Empty:
+            # No new frames, continue checking stop_event
+            continue
         except Exception as e:
-            logging.error(f"An error occurred: {e}")
-            break
-        # Calculate the brightest pixel value
-        # brightest_pixel_value = np.max(frame)
-        # print(f"Brightest Pixel Value: {brightest_pixel_value}")
+            logging.error(f"Consumer error: {e}")
+            continue
 
-# Create a stop event for the thread
+# Create stop events
 stop_event = threading.Event()
 
-# Start a thread for grabbing and processing frames
-thread = threading.Thread(target=grab_and_process, args=(stop_event,))
-thread.daemon = True
-thread.start()
+# Start producer and consumer threads
+producer_thread = threading.Thread(target=frame_producer, args=(stop_event,))
+consumer_thread = threading.Thread(target=frame_consumer, args=(stop_event,))
+producer_thread.daemon = True
+consumer_thread.daemon = True
+producer_thread.start()
+consumer_thread.start()
 
 # Create and start the Autocollimator live window thread
-live_window_thread = AutocollimatorLiveWindowThread(image_frame_storage, ContinousStorage)
+# Updated to use frame_manager instead of image_frame_storage list
+live_window_thread = AutocollimatorLiveWindowThread(frame_manager, ContinousStorage)
 live_window_thread.run()
 
-# Start the PyQtGraph application
-app.exec_()
-
-# Close the camera when the application is closed
-camera.close()
+try:
+    # Start the PyQtGraph application
+    app.exec_()
+finally:
+    # Clean up
+    stop_event.set()
+    producer_thread.join(timeout=1.0)
+    consumer_thread.join(timeout=1.0)
+    camera.close()

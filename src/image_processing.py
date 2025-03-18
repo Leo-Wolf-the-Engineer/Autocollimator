@@ -2,33 +2,28 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 import cv2
-import warnings
+from numba import jit
 
-# Todo: Handle Multiple Peaks
-# Todo: test multiple processors with multiple videos
+
 class ImageProcessor:
     def __init__(self, processor_type, Width, Heigth):
         """
         Initialize the ImageProcessor
-        :param processor_type:
-        must be either 'Gaussian', 'CircleFit' or 'Linefit'
+        :param processor_type: must be either 'Gaussian', 'CircleFit' or 'Linefit'
         """
         self.latest_frame = None
         self.Width = Width
         self.Heigth = Heigth
 
         if processor_type not in ["Gaussian", "CircleFit", "Linefit"]:
-            raise ValueError("processor_type must be either 'Gaussian' or 'CircleFit'")
+            raise ValueError("processor_type must be either 'Gaussian', 'CircleFit' or 'Linefit'")
         self.camera_type = processor_type
-        self.Processor = None
 
         if processor_type == "Gaussian":
             self.Processor = Gaussian()
-
-        if processor_type == "Peakfinder":
+        elif processor_type == "Peakfinder":
             self.Processor = Peakfinder()
-
-        if processor_type == "Linefit":
+        elif processor_type == "Linefit":
             self.Processor = Linefit()
 
     def process_frame(self, frame):
@@ -38,7 +33,10 @@ class ImageProcessor:
         :param frame: The input image frame
         :return: The calculated peak positions in Pixels
         """
-        frame = self.convert_to_grayscale(frame)
+        # Convert to grayscale if needed (fast check)
+        if len(frame.shape) == 3 and frame.shape[2] == 3:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
         values_X, values_Y = self.Processor.process_frame(frame)
 
         # Ensure values_X and values_Y are iterable
@@ -47,77 +45,69 @@ class ImageProcessor:
         if not isinstance(values_Y, (list, np.ndarray)):
             values_Y = [values_Y]
 
-        if len(values_X) > 10 or len(values_Y) > 10:
-            raise ValueError("Cannot store more than 10 values at a time")
-        else:
-            for value in values_X:
-                if np.isnan(value) or value > self.Width or value < 0:
-                    values_X.remove(value)
-                    values_Y.remove(value)
-                    warnings.warn("Removing NaN or out of range value Pair...")
-            for value in values_Y:
-                if np.isnan(value) or value > self.Heigth or value < 0:
-                    values_X.remove(value)
-                    values_Y.remove(value)
-                    warnings.warn("Removing NaN or out of range value Pair...")
+        # Filter invalid values efficiently
+        valid_indices = []
+        for i, (x, y) in enumerate(zip(values_X, values_Y)):
+            if (not np.isnan(x) and not np.isnan(y) and
+                0 <= x < self.Width and 0 <= y < self.Heigth):
+                valid_indices.append(i)
 
-        # Convert lists to NumPy arrays for element-wise operations
-        values_X = np.array(values_X)
-        values_Y = np.array(values_Y)
+        # Extract only valid values
+        if len(valid_indices) < len(values_X):
+            values_X = [values_X[i] for i in valid_indices]
+            values_Y = [values_Y[i] for i in valid_indices]
 
-        # Center the values around the center of the frame and return
-        return values_X - self.Width / 2, values_Y - self.Heigth / 2
+        # Convert to arrays and center
+        values_X = np.array(values_X) - self.Width / 2
+        values_Y = np.array(values_Y) - self.Heigth / 2
 
-    def convert_to_grayscale(self, frame):
-        """
-        Convert the input frame to grayscale if it is an RGB image
-        :param frame: The input image frame
-        :return: The grayscale image
-        """
-        if len(frame.shape) == 3 and frame.shape[2] == 3:
-            return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        return frame
+        return values_X, values_Y
 
 
 class Gaussian:
-    def __init__(self, ):
+    def __init__(self):
         self.latest_frame = None
 
-    def gaussian(self, x, a, x0, sigma):
-        """
-        Gaussian function
-        :param x: The input variable
-        :param a: The amplitude of the Gaussian
-        :param x0: The center of the Gaussian
-        :param sigma: The standard deviation of the Gaussian
-        :return: The value of the Gaussian function at x
-        """
+    @staticmethod
+    @jit(nopython=True)
+    def gaussian(x, a, x0, sigma):
+        """Optimized Gaussian function"""
         return a * np.exp(-(x - x0) ** 2 / (2 * sigma ** 2))
 
     def process_frame(self, frame):
-        """
-        Process the frame using the Gaussian_Processor
-        :param frame: grayscale image
-        :return:
-        """
+        """Process the frame using the Gaussian method"""
         self.latest_frame = frame
 
-        # Sum the intensities of the grayscale image
+        # Pre-compute sums once
         intensity_x = np.sum(frame, axis=0)
         intensity_y = np.sum(frame, axis=1)
 
-        # Fit Gaussian in the X direction
+        # Create arrays once
         x = np.arange(frame.shape[1])
+        y = np.arange(frame.shape[0])
+
+        # Initial guesses for better convergence
+        max_x = np.argmax(intensity_x)
+        max_y = np.argmax(intensity_y)
+
+        # Fit Gaussian in X direction
         try:
-            popt_x, _ = curve_fit(self.gaussian, x, intensity_x, p0=[np.max(intensity_x), np.argmax(intensity_x), 10])
+            popt_x, _ = curve_fit(
+                self.gaussian, x, intensity_x,
+                p0=[np.max(intensity_x), max_x, 10],
+                bounds=([0, 0, 1], [np.inf, frame.shape[1], 100])
+            )
             peak_x = popt_x[1]
         except RuntimeError:
             peak_x = np.nan
 
-        # Fit Gaussian in the Y direction
-        y = np.arange(frame.shape[0])
+        # Fit Gaussian in Y direction
         try:
-            popt_y, _ = curve_fit(self.gaussian, y, intensity_y, p0=[np.max(intensity_y), np.argmax(intensity_y), 10])
+            popt_y, _ = curve_fit(
+                self.gaussian, y, intensity_y,
+                p0=[np.max(intensity_y), max_y, 10],
+                bounds=([0, 0, 1], [np.inf, frame.shape[0], 100])
+            )
             peak_y = popt_y[1]
         except RuntimeError:
             peak_y = np.nan
@@ -132,207 +122,237 @@ class Peakfinder:
     def process_frame(self, frame):
         self.latest_frame = frame
 
-        # Sum the intensities of the grayscale image
+        # Pre-compute sums once
         intensity_x = np.sum(frame, axis=0)
         intensity_y = np.sum(frame, axis=1)
 
-        # Find peaks in the X direction
-        peaks_x, properties_x = find_peaks(intensity_x)
-        peak_intensities_x = properties_x['peak_heights']
-        sorted_indices_x = np.argsort(peak_intensities_x)[::-1][:10]
-        peak_positions_x = peaks_x[sorted_indices_x]
+        # Use more efficient peak finding parameters
+        peaks_x, properties_x = find_peaks(intensity_x, height=None, distance=5, prominence=100)
+        peaks_y, properties_y = find_peaks(intensity_y, height=None, distance=5, prominence=100)
 
-        # Find peaks in the Y direction
-        peaks_y, properties_y = find_peaks(intensity_y)
-        peak_intensities_y = properties_y['peak_heights']
-        sorted_indices_y = np.argsort(peak_intensities_y)[::-1][:10]
-        peak_positions_y = peaks_y[sorted_indices_y]
+        if len(peaks_x) == 0 or len(peaks_y) == 0:
+            return np.nan, np.nan
 
-        return peak_positions_x, peak_positions_y
+        # Get most prominent peak directly
+        max_idx_x = np.argmax(intensity_x[peaks_x])
+        peak_x = peaks_x[max_idx_x]
+
+        max_idx_y = np.argmax(intensity_y[peaks_y])
+        peak_y = peaks_y[max_idx_y]
+
+        return peak_x, peak_y
 
 
 class Linefit:
     def __init__(self):
         self.latest_frame = None
+        # Pre-allocate buffers
+        self.edges = None
+        self._DEBUG = False  # Control debug visualization
 
-    def process_frame(self, frame):
-        """
-        Process the frame using the Linefit
-        :param frame:
-        :return:
-        """
+    @staticmethod
+    @jit(nopython=True)
+    def calculate_intersection(avg_rho1, avg_theta1, avg_rho2, avg_theta2):
+        """Calculate the intersection point of two lines"""
+        if avg_rho1 is None or avg_theta1 is None or avg_rho2 is None or avg_theta2 is None:
+            return np.nan, np.nan
 
-        self.latest_frame = frame
+        # Convert polar coordinates to Cartesian coordinates
+        a1 = np.cos(avg_theta1)
+        b1 = np.sin(avg_theta1)
+        x1 = a1 * avg_rho1
+        y1 = b1 * avg_rho1
 
-        def average_lines(line_set):
-            """
-            Average the lines in the set
-            :param line_set: The set of lines
-            :return: The average rho and theta values
-            """
-            if not line_set:
-                return None, None
+        a2 = np.cos(avg_theta2)
+        b2 = np.sin(avg_theta2)
+        x2 = a2 * avg_rho2
+        y2 = b2 * avg_rho2
 
-            rho_sum = 0
-            theta_sum = 0
-            count = 0
+        # Calculate the intersection point
+        # Using determinant method instead of solve for stability
+        det = a1 * b2 - a2 * b1
+        if abs(det) < 1e-10:
+            return np.nan, np.nan
 
-            for rho, theta in line_set:
-                rho_sum += rho
-                theta_sum += theta
-                count += 1
-
-            avg_rho = rho_sum / count
-            avg_theta = theta_sum / count
-
-            return avg_rho, avg_theta
-
-        def calculate_intersection(self, avg_rho1, avg_theta1, avg_rho2, avg_theta2):
-            """
-            Calculate the intersection point of two lines
-            :param self:
-            :param avg_rho1:
-            :param avg_theta1:
-            :param avg_rho2:
-            :param avg_theta2:
-            :return:
-            """
-            if avg_rho1 is None or avg_theta1 is None or avg_rho2 is None or avg_theta2 is None:
-                return np.nan, np.nan
-
-            # Convert polar coordinates to Cartesian coordinates
-            a1 = np.cos(avg_theta1)
-            b1 = np.sin(avg_theta1)
-            x1 = a1 * avg_rho1
-            y1 = b1 * avg_rho1
-
-            a2 = np.cos(avg_theta2)
-            b2 = np.sin(avg_theta2)
-            x2 = a2 * avg_rho2
-            y2 = b2 * avg_rho2
-
-            # Calculate the intersection point
-            A = np.array([[a1, b1], [a2, b2]])
-            B = np.array([x1, x2])
-            try:
-                intersection = np.linalg.solve(A, B)
-                peak_x = intersection[0]
-                peak_y = intersection[1]
-            except np.linalg.LinAlgError:
-                peak_x = np.nan
-                peak_y = np.nan
-
-            return peak_x, peak_y
-
-        def visualize_linefit(frame, edges, lines, avg_rho1, avg_theta1, avg_rho2, avg_theta2, peak_x, peak_y):
-            """
-            Visualize the line fitting results.
-            :param frame: The input image frame
-            :param edges: The edges detected by Canny edge detection
-            :param lines: The lines detected by Hough Line Transform
-            :param avg_rho1: The average rho value of the first set of detected lines
-            :param avg_theta1: The average theta value of the first set of detected lines
-            :param avg_rho2: The average rho value of the second set of detected lines
-            :param avg_theta2: The average theta value of the second set of detected lines
-            :param peak_x: The calculated x-coordinate of the center
-            :param peak_y: The calculated y-coordinate of the center
-            """
-            # Create a copy of the frame to draw on
-            output_frame = frame.copy()
-
-            output_frame = cv2.cvtColor(output_frame, cv2.COLOR_GRAY2BGR)
-
-            # Draw the edges on the frame
-            #output_frame[edges != 0] = [0, 0, 255]
-
-            # Draw each detected line on the frame
-            if lines is not None:
-                for rho, theta in lines[:, 0]:
-                    a = np.cos(theta)
-                    b = np.sin(theta)
-                    x0 = a * rho
-                    y0 = b * rho
-                    x1 = int(x0 + 1000 * (-b))
-                    y1 = int(y0 + 1000 * (a))
-                    x2 = int(x0 - 1000 * (-b))
-                    y2 = int(y0 - 1000 * (a))
-                    cv2.line(output_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-            # Draw the calculated average lines on the frame
-            if avg_rho1 is not None and avg_theta1 is not None:
-                a = np.cos(avg_theta1)
-                b = np.sin(avg_theta1)
-                x0 = a * avg_rho1
-                y0 = b * avg_rho1
-                x1 = int(x0 + 1000 * (-b))
-                y1 = int(y0 + 1000 * (a))
-                x2 = int(x0 - 1000 * (-b))
-                y2 = int(y0 - 1000 * (a))
-                cv2.line(output_frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-
-            if avg_rho2 is not None and avg_theta2 is not None:
-                a = np.cos(avg_theta2)
-                b = np.sin(avg_theta2)
-                x0 = a * avg_rho2
-                y0 = b * avg_rho2
-                x1 = int(x0 + 1000 * (-b))
-                y1 = int(y0 + 1000 * (a))
-                x2 = int(x0 - 1000 * (-b))
-                y2 = int(y0 - 1000 * (a))
-                cv2.line(output_frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-
-            # Draw the calculated center on the frame
-            if not np.isnan(peak_x) and not np.isnan(peak_y):
-                center = (int(peak_x), int(peak_y))
-                cv2.circle(output_frame, center, 5, (255, 255, 0), -1)
-
-            # Add legend
-            cv2.putText(output_frame, 'Edges', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-            cv2.putText(output_frame, 'Detected Lines', (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-            cv2.putText(output_frame, 'Average Line Set 1', (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-            cv2.putText(output_frame, 'Average Line Set 2', (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-            cv2.putText(output_frame, 'Center', (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
-
-            # Display the frame with the visualizations
-            cv2.imshow('Linefit Visualization', output_frame)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-
-        #if len(frame.shape) == 3 and frame.shape[2] == 3:
-        #    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        #elif len(frame.shape) == 2:
-        #    gray = frame
-        #else:
-        #    raise ValueError("Unexpected number of channels in the input image")
-
-        if frame.dtype == np.uint16:
-            frame = (frame / 16).astype(np.uint8)
-
-
-        edges = cv2.Canny(frame, 20, 80, apertureSize=5, L2gradient=True)
-        print(edges)
-        print(edges.shape)
-
-        lines = cv2.HoughLines(edges, 2, np.pi / 180, 500)
-        print(lines)
-        if lines is not None:
-            set1 = []
-            set2 = []
-
-            for rho, theta in lines[:, 0]:
-                if 0 <= theta < np.pi / 4 or 3 * np.pi / 4 <= theta <= np.pi:
-                    set1.append((rho, theta))
-                elif np.pi / 4 <= theta < 3 * np.pi / 4:
-                    set2.append((rho, theta))
-            avg_rho1, avg_theta1 = average_lines(set1)
-            avg_rho2, avg_theta2 = average_lines(set2)
-
-            peak_x, peak_y = calculate_intersection(avg_rho1, avg_theta1, avg_rho2, avg_theta2)
-        else:
-            warnings.warn("no lines found")
-            avg_rho1 = avg_theta1 = avg_rho2 = avg_theta2 = None
-            peak_x = peak_y = np.nan
-        print(np.mean(self.latest_frame))
-        visualize_linefit(self.latest_frame, edges, lines, avg_rho1, avg_theta1, avg_rho2, avg_theta2, peak_x, peak_y)
+        peak_x = (b2 * x1 - b1 * x2) / det
+        peak_y = (a1 * x2 - a2 * x1) / det
 
         return peak_x, peak_y
+
+    def process_frame(self, frame, debug=False):
+        """Process the frame using the Linefit method"""
+        self.latest_frame = frame
+
+        # Convert 16-bit to 8-bit if necessary
+        if frame.dtype == np.uint16:
+            frame = (frame / 256).astype(np.uint8)
+
+        # Define ROI to focus processing on center area
+        height, width = frame.shape[:2]
+        roi_x = int(width * 0.25)
+        roi_y = int(height * 0.25)
+        roi_width = int(width * 0.5)
+        roi_height = int(height * 0.5)
+
+        # Process only the ROI
+        roi = frame[roi_y:roi_y+roi_height, roi_x:roi_x+roi_width]
+
+        # Initialize or resize buffer if needed
+        if self.edges is None or self.edges.shape != roi.shape:
+            self.edges = np.zeros(roi.shape, dtype=np.uint8)
+
+        # Optimized edge detection
+        cv2.Canny(roi, 20, 80, edges=self.edges, apertureSize=3, L2gradient=False)
+
+        # Use probabilistic Hough transform (much faster)
+        lines = cv2.HoughLinesP(self.edges, 1, np.pi/180, 50, minLineLength=40, maxLineGap=10)
+
+        if lines is not None:
+            # Convert probabilistic lines to polar form for consistent processing
+            set1 = []  # near vertical lines
+            set2 = []  # near horizontal lines
+
+            for line in lines:
+                x1, y1, x2, y2 = line[0]
+                # Avoid division by zero
+                if x2 == x1:
+                    angle = np.pi/2
+                else:
+                    angle = np.arctan(abs(y2-y1)/abs(x2-x1))
+
+                # Convert to standard form: ax + by + c = 0
+                a = y2 - y1
+                b = x1 - x2
+                c = x2*y1 - x1*y2
+                # Convert to normal form: rho = x*cos(theta) + y*sin(theta)
+                norm = np.sqrt(a*a + b*b)
+                if norm == 0:
+                    continue
+
+                rho = abs(c) / norm
+                # Ensure rho is positive
+                if c > 0:
+                    a, b = -a, -b
+
+                theta = np.arctan2(b, a)
+
+                # Classify lines based on angle
+                if angle < np.pi/4:  # near horizontal
+                    set2.append((rho, theta))
+                else:  # near vertical
+                    set1.append((rho, theta))
+
+            # Process line sets
+            avg_rho1, avg_theta1 = self._average_lines(set1)
+            avg_rho2, avg_theta2 = self._average_lines(set2)
+
+            # Adjust for ROI offset
+            if avg_rho1 is not None and avg_theta1 is not None:
+                adj_rho1 = avg_rho1 + roi_x * np.cos(avg_theta1) + roi_y * np.sin(avg_theta1)
+            else:
+                adj_rho1 = avg_rho1
+
+            if avg_rho2 is not None and avg_theta2 is not None:
+                adj_rho2 = avg_rho2 + roi_x * np.cos(avg_theta2) + roi_y * np.sin(avg_theta2)
+            else:
+                adj_rho2 = avg_rho2
+
+            # Calculate intersection
+            peak_x, peak_y = self.calculate_intersection(adj_rho1, avg_theta1, adj_rho2, avg_theta2)
+
+            # DEBUG visualization - only when requested
+            if debug and self._DEBUG:
+                self._visualize_linefit(frame, self.edges, set1, set2,
+                                     avg_rho1, avg_theta1, avg_rho2, avg_theta2,
+                                     peak_x, peak_y, roi_x, roi_y)
+        else:
+            peak_x = peak_y = np.nan
+
+        return peak_x, peak_y
+
+    def _average_lines(self, line_set):
+        """Average the lines in the set"""
+        if not line_set:
+            return None, None
+
+        # Handle duplicate/near-duplicate lines by clustering
+        rhos = np.array([rho for rho, _ in line_set])
+        thetas = np.array([theta for _, theta in line_set])
+
+        if len(rhos) == 0:
+            return None, None
+
+        # Simple average (could be improved with RANSAC or clustering)
+        avg_rho = np.mean(rhos)
+        avg_theta = np.mean(thetas)
+
+        return avg_rho, avg_theta
+
+    def _visualize_linefit(self, frame, edges, set1, set2, avg_rho1, avg_theta1,
+                          avg_rho2, avg_theta2, peak_x, peak_y, roi_x=0, roi_y=0):
+        """Debug visualization function - only called when debug=True"""
+        import cv2
+
+        # Create a copy of the frame to draw on
+        output_frame = cv2.cvtColor(frame.copy(), cv2.COLOR_GRAY2BGR)
+
+        # Draw ROI
+        cv2.rectangle(output_frame,
+                     (roi_x, roi_y),
+                     (roi_x + edges.shape[1], roi_y + edges.shape[0]),
+                     (0, 255, 255), 2)
+
+        # Draw lines from set1 (vertical)
+        for rho, theta in set1:
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a * rho + roi_x
+            y0 = b * rho + roi_y
+            x1 = int(x0 + 1000 * (-b))
+            y1 = int(y0 + 1000 * (a))
+            x2 = int(x0 - 1000 * (-b))
+            y2 = int(y0 - 1000 * (a))
+            cv2.line(output_frame, (x1, y1), (x2, y2), (0, 255, 0), 1)
+
+        # Draw lines from set2 (horizontal)
+        for rho, theta in set2:
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a * rho + roi_x
+            y0 = b * rho + roi_y
+            x1 = int(x0 + 1000 * (-b))
+            y1 = int(y0 + 1000 * (a))
+            x2 = int(x0 - 1000 * (-b))
+            y2 = int(y0 - 1000 * (a))
+            cv2.line(output_frame, (x1, y1), (x2, y2), (255, 0, 0), 1)
+
+        # Draw average lines
+        if avg_rho1 is not None and avg_theta1 is not None:
+            a = np.cos(avg_theta1)
+            b = np.sin(avg_theta1)
+            x0 = a * (avg_rho1 + roi_x * np.cos(avg_theta1) + roi_y * np.sin(avg_theta1))
+            y0 = b * (avg_rho1 + roi_x * np.cos(avg_theta1) + roi_y * np.sin(avg_theta1))
+            x1 = int(x0 + 1000 * (-b))
+            y1 = int(y0 + 1000 * (a))
+            x2 = int(x0 - 1000 * (-b))
+            y2 = int(y0 - 1000 * (a))
+            cv2.line(output_frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+
+        if avg_rho2 is not None and avg_theta2 is not None:
+            a = np.cos(avg_theta2)
+            b = np.sin(avg_theta2)
+            x0 = a * (avg_rho2 + roi_x * np.cos(avg_theta2) + roi_y * np.sin(avg_theta2))
+            y0 = b * (avg_rho2 + roi_x * np.cos(avg_theta2) + roi_y * np.sin(avg_theta2))
+            x1 = int(x0 + 1000 * (-b))
+            y1 = int(y0 + 1000 * (a))
+            x2 = int(x0 - 1000 * (-b))
+            y2 = int(y0 - 1000 * (a))
+            cv2.line(output_frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+        # Draw intersection point
+        if not np.isnan(peak_x) and not np.isnan(peak_y):
+            cv2.circle(output_frame, (int(peak_x), int(peak_y)), 5, (255, 255, 0), -1)
+
+        # Show the result
+        cv2.imshow('Linefit Debug', output_frame)
+        cv2.waitKey(1)  # Non-blocking display
