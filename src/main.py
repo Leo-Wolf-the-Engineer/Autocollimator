@@ -11,8 +11,12 @@ import logging
 import time
 import cv2
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure logging with location information
+logging.basicConfig(
+    level=logging.DEBUG,  # Set your desired log level
+    format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s() - %(message)s',
+    datefmt='%H:%M:%S'
+)
 
 # Constants for conversion from pixels to arcseconds
 PIXEL_PITCH = 3.45e-6  # in meters
@@ -38,7 +42,7 @@ frame_manager = FrameManager()
 frame_queue = queue.Queue(maxsize=5)  # Limit queue size to prevent memory issues
 camera = CameraManager("AVI")
 imagewidth, imageheight = camera.get_image_size()
-processor = ImageProcessor("Gaussian", imagewidth, imageheight)
+processor = ImageProcessor("Peakfinder", imagewidth, imageheight)
 ContinousStorage = ContinousDataStorage(CONVERSION_FACTOR)
 straightness_data = POIDataStorage(CONVERSION_FACTOR)
 app = QtWidgets.QApplication([])
@@ -56,7 +60,7 @@ def frame_producer(stop_event):
                 frame_queue.put(frame, block=False)
             except queue.Full:
                 # Skip frame if queue is full
-                logging.debug("Processing queue full, skipping frame")
+                #logging.debug("Processing queue full, skipping frame")
                 pass
 
         except Exception as e:
@@ -67,16 +71,17 @@ def frame_producer(stop_event):
 def frame_consumer(stop_event):
     logging.debug("Starting frame consumer thread")
     while not stop_event.is_set():
+        logging.debug("Consumer thread running")
         try:
             # Get frame with timeout to check stop_event periodically
             frame = frame_queue.get(timeout=0.5)
 
             # Process frame
             if frame is not None:
-                #print(f"Mean frame value: {np.mean(frame)}")
+                #print(frame[0][0])
                 peaks_x, peaks_y = processor.process_frame(frame)
-                print (f"new peak positions: {peaks_x}, {peaks_y}")
                 ContinousStorage.new_data(peaks_x, peaks_y)
+
 
             frame_queue.task_done()
         except queue.Empty:

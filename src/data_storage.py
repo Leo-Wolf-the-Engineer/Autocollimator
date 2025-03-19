@@ -2,99 +2,116 @@ from collections import deque
 import numpy as np
 import threading
 import time
+import logging
 
+# Configure logging with location information
+logging.basicConfig(
+    level=logging.DEBUG,  # Set your desired log level
+    format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s() - %(message)s',
+    datefmt='%H:%M:%S'
+)
 
 class ContinousDataStorage:
     def __init__(self, conversion_factor, max_points=100000):
         self.conversion_factor = conversion_factor
+        self.microrad_conv_factor = conversion_factor * np.pi * 1e3 / 648
         self.max_points = max_points
-        # Use deques for faster append/pop operations
+
+        # Use deques for efficient append/pop operations
         self.x_data = deque(maxlen=max_points)
         self.y_data = deque(maxlen=max_points)
         self.timestamps = deque(maxlen=max_points)
-        self.lock = threading.RLock()  # Reentrant lock
 
-        # Cache for converted values
-        self._cached_arcsec_x = None
-        self._cached_arcsec_y = None
+        # Thread safety
+        self.lock = threading.RLock()
+
+        # Cache for faster unit conversions
+        self._cached = {}
         self._cache_dirty = True
 
     def new_data(self, x_values, y_values):
-        # Convert to numpy arrays for vectorized operations
-        x_array = np.atleast_1d(x_values)
-        y_array = np.atleast_1d(y_values)
-
-        with self.lock:
-            timestamp = time.time_ns()
-            # Batch append instead of individual appends
-            self.timestamps.append(timestamp)
-            self.x_data.append(x_array)
-            self.y_data.append(y_array)
-            self._cache_dirty = True  # Mark cache as dirty
-
-    def get_data(self, unit="Pixels"):
-        with self.lock:
-            if unit == "Pixels":
-                return list(self.x_data), list(self.y_data)
-            elif unit == "Arcseconds":
-                # Use cached values if available and not dirty
-                if self._cache_dirty or self._cached_arcsec_x is None:
-                    # Vectorized conversion
-                    self._cached_arcsec_x = [x * self.conversion_factor for x in self.x_data]
-                    self._cached_arcsec_y = [y * self.conversion_factor for y in self.y_data]
-                    self._cache_dirty = False
-                return self._cached_arcsec_x, self._cached_arcsec_y
-
-    def get_timestamp(self):
-        with self.lock:
-            return list(self.timestamps)
-
-    def get_windowed_data(self, time_window_seconds, unit="Pixels"):
-        """Retrieve only data from the last N seconds"""
-        current_time = time.time_ns()
-        window_ns = time_window_seconds * 1e9
-
-        with self.lock:
-            # Find indices of elements within time window
-            valid_indices = [i for i, ts in enumerate(self.timestamps)
-                             if current_time - ts <= window_ns]
-
-            if not valid_indices:
-                return [], []
-
-            # Get data only for valid timestamps
-            x_windowed = [self.x_data[i] for i in valid_indices]
-            y_windowed = [self.y_data[i] for i in valid_indices]
-
-            if unit == "Arcseconds":
-                x_windowed = [x * self.conversion_factor for x in x_windowed]
-                y_windowed = [y * self.conversion_factor for y in y_windowed]
-
-            return x_windowed, y_windowed
-
-    def get_data(self, unit="Arcseconds"):
         """
-        Retrieve all data from the storage.
-        :param unit: The unit of the data to be returned, default is Arcseconds, can be Pixels or Microradians
-        :return: A list of all stored data in the specified unit
+        Add new data point(s) to storage
+
+        :param x_values: Single value, list, or array of x coordinates
+        :param y_values: Single value, list, or array of y coordinates
         """
-        if unit == "Arcseconds":
-            return [[x * self.conversion_factor for x in sublist] for sublist in self.x_data], \
-                [[y * self.conversion_factor for y in sublist] for sublist in self.y_data]
-        elif unit == "Pixels":
-            return self.x_data, self.y_data
-        elif unit == "Microradians":
-            return [[x / self.conversion_factor * np.pi * 1e3 / 648 for x in sublist] for sublist in self.x_data], \
-                [[y / self.conversion_factor * np.pi * 1e3 / 648 for y in sublist] for sublist in self.y_data]
+        # Convert inputs to numpy arrays and ensure they're 1D
+        x_array = np.atleast_1d(x_values).flatten()
+        y_array = np.atleast_1d(y_values).flatten()
+
+        len_x = len(x_array)
+        len_y = len(y_array)
+
+        if len_x == len_y and len_x > 0 and len_y > 0 and len_x <= 10 and len_y <= 10:
+            # Add data to storage
+            with self.lock:
+                timestamp = time.time_ns()
+                self.timestamps.append(timestamp)
+                self.x_data.append(x_array)
+                self.y_data.append(y_array)
+                self._cache_dirty = True
         else:
-            raise Exception("Unit not recognized")
+            logging.debug(f"Data not added, invalid input - got {len_x} x values and {len_y} y values")
 
-    def get_timestamp(self):
+    def get_XY_data(self, unit="Pixels"):
         """
-        Retrieve all data from the storage.
-        :return: A list of all stored data in the specified unit
+        Retrieve all data as NumPy arrays.
+
+        :param unit: "Pixels", "Arcseconds", or "Microradians"
+        :return: Tuple of (x_array, y_array) as NumPy arrays, where each array
+                 contains all points flattened into a 1D array
+
         """
-        return self.timestamps
+        with self.lock:
+            # Handle empty data case
+            if len(self.x_data) == 0:
+                return np.array([]), np.array([])
+
+            # Use cached results if available
+            if not self._cache_dirty and unit in self._cached:
+                return self._cached[unit]
+
+            # Concatenate all arrays into flat arrays
+            x_array = np.concatenate([np.atleast_1d(x) for x in self.x_data])
+            y_array = np.concatenate([np.atleast_1d(y) for y in self.y_data])
+
+            # Apply unit conversion
+            if unit == "Pixels":
+                result = (x_array, y_array)
+            elif unit == "Arcseconds":
+                result = (x_array * self.conversion_factor,
+                         y_array * self.conversion_factor)
+            elif unit == "Microradians":
+                result = (x_array * self.microrad_conv_factor,
+                         y_array * self.microrad_conv_factor)
+            else:
+                raise ValueError(f"Unit '{unit}' not recognized.")
+
+            # Cache result
+            self._cached[unit] = result
+            if unit == "Pixels":
+                self._cache_dirty = False
+
+            return result
+
+    def get_timestamps(self):
+        """Return timestamps as NumPy array"""
+        with self.lock:
+            return np.array(list(self.timestamps))
+
+    def get_XY_time_data(self, unit="Pixels"):
+        """
+        Retrieve all data as NumPy arrays, with timestamps included.
+
+        :param unit: "Pixels", "Arcseconds", or "Microradians"
+        :return: Tuple of (x_array, y_array, timestamps) as NumPy arrays, where each array
+                 contains all points flattened into a 1D array
+        """
+        with self.lock:
+            x_array, y_array = self.get_XY_data(unit)
+            timestamps = self.get_timestamps()
+            return x_array, y_array, timestamps
 
     def clear_data(self):
         """
@@ -103,7 +120,6 @@ class ContinousDataStorage:
         self.x_data = []
         self.y_data = []
         self.timestamps = []
-
 
 # Todo handle multiple peaks
 class POIDataStorage:

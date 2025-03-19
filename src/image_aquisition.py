@@ -144,6 +144,7 @@ class AVIReader:
 
     def retrieve_frame(self):
         ret, frame = self.cap.read()
+        #time.sleep(0.02)
         if not ret:
             self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Restart the video
             ret, frame = self.cap.read()
