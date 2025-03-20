@@ -1,7 +1,5 @@
 import numpy as np
-from numba import jit
-import cv2
-import logging
+from scipy.signal import find_peaks
 
 
 class Peakfinder:

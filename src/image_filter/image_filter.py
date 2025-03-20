@@ -1,10 +1,20 @@
 import numpy as np
 import cv2
 import logging
+import sys
+from os.path import dirname, abspath
+
+# Add the project root directory to the Python path
+project_root = dirname(dirname(abspath(__file__)))
+sys.path.append(project_root)
 
 # Import will be needed when you implement the actual filter classes
-# from image_filter.gaussian_filter import GaussianFilter
-# from image_filter.median_filter import MedianFilter
+from image_filter.gaussian_filter import GaussianFilter
+from image_filter.median_filter import MedianFilter
+from image_filter.bilateral_filter import BilateralFilter
+from image_filter.background_subtraction_filter import BackgroundSubtractionFilter
+from image_filter.morphological_filter import MorphologicalFilter
+from image_filter.fourier_filter import FourierFilter
 # etc.
 
 class ImageFilter:

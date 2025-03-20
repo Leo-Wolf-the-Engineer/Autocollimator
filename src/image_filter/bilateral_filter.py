@@ -4,6 +4,12 @@ from .base_filter import BaseFilter
 
 class BilateralFilter(BaseFilter):
     def __init__(self, d=9, sigma_color=75, sigma_space=75):
+        """
+        initialize the BilateralFilter
+        :param d: Diameter of each pixel neighborhood
+        :param sigma_color: Filter sigma in the color space
+        :param sigma_space: Filter sigma in the coordinate space
+        """
         self.d = d
         self.sigma_color = sigma_color
         self.sigma_space = sigma_space

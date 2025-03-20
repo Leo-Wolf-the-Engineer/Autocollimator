@@ -1,0 +1,235 @@
+Filter and Processor Stability Test Results
+==========================================
+
+Combinations sorted by stability (lowest RMS first):
+Gaussian_Dummy: RMS=0.000, Detection Rate=100.0%
+Median_Dummy: RMS=0.000, Detection Rate=100.0%
+Bilateral_Dummy: RMS=0.000, Detection Rate=100.0%
+Background_Dummy: RMS=0.000, Detection Rate=100.0%
+NoFilter_Dummy: RMS=0.000, Detection Rate=100.0%
+Morphological_Dummy: RMS=0.000, Detection Rate=100.0%
+Fourier_Dummy: RMS=0.000, Detection Rate=100.0%
+Background_AccurateGaussian: RMS=0.378, Detection Rate=100.0%
+Bilateral_AccurateGaussian: RMS=0.471, Detection Rate=100.0%
+NoFilter_AccurateGaussian: RMS=0.553, Detection Rate=100.0%
+Median_AccurateGaussian: RMS=0.588, Detection Rate=100.0%
+Gaussian_AccurateGaussian: RMS=0.606, Detection Rate=100.0%
+Fourier_FastGaussian: RMS=0.721, Detection Rate=32.0%
+Morphological_AccurateGaussian: RMS=0.735, Detection Rate=100.0%
+Morphological_FastGaussian: RMS=0.805, Detection Rate=66.0%
+Background_FastGaussian: RMS=1.364, Detection Rate=40.0%
+NoFilter_FastGaussian: RMS=1.628, Detection Rate=36.0%
+Fourier_AccurateGaussian: RMS=1.710, Detection Rate=100.0%
+
+
+Detailed Results:
+
+NoFilter_FastGaussian:
+  RMS X: 0.456
+  RMS Y: 1.563
+  RMS Combined: 1.628
+  Detection Rate: 36.0%
+
+Gaussian_FastGaussian:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 8.0%
+
+Median_FastGaussian:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 8.0%
+
+Bilateral_FastGaussian:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Background_FastGaussian:
+  RMS X: 0.457
+  RMS Y: 1.285
+  RMS Combined: 1.364
+  Detection Rate: 40.0%
+
+Morphological_FastGaussian:
+  RMS X: 0.630
+  RMS Y: 0.502
+  RMS Combined: 0.805
+  Detection Rate: 66.0%
+
+Fourier_FastGaussian:
+  RMS X: 0.449
+  RMS Y: 0.564
+  RMS Combined: 0.721
+  Detection Rate: 32.0%
+
+NoFilter_AccurateGaussian:
+  RMS X: 0.421
+  RMS Y: 0.358
+  RMS Combined: 0.553
+  Detection Rate: 100.0%
+
+Gaussian_AccurateGaussian:
+  RMS X: 0.467
+  RMS Y: 0.388
+  RMS Combined: 0.606
+  Detection Rate: 100.0%
+
+Median_AccurateGaussian:
+  RMS X: 0.491
+  RMS Y: 0.323
+  RMS Combined: 0.588
+  Detection Rate: 100.0%
+
+Bilateral_AccurateGaussian:
+  RMS X: 0.343
+  RMS Y: 0.322
+  RMS Combined: 0.471
+  Detection Rate: 100.0%
+
+Background_AccurateGaussian:
+  RMS X: 0.273
+  RMS Y: 0.262
+  RMS Combined: 0.378
+  Detection Rate: 100.0%
+
+Morphological_AccurateGaussian:
+  RMS X: 0.562
+  RMS Y: 0.474
+  RMS Combined: 0.735
+  Detection Rate: 100.0%
+
+Fourier_AccurateGaussian:
+  RMS X: 1.535
+  RMS Y: 0.753
+  RMS Combined: 1.710
+  Detection Rate: 100.0%
+
+NoFilter_Peakfinder:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Gaussian_Peakfinder:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Median_Peakfinder:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Bilateral_Peakfinder:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Background_Peakfinder:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Morphological_Peakfinder:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Fourier_Peakfinder:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+NoFilter_Linefit:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Gaussian_Linefit:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Median_Linefit:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Bilateral_Linefit:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Background_Linefit:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Morphological_Linefit:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+Fourier_Linefit:
+  RMS X: nan
+  RMS Y: nan
+  RMS Combined: nan
+  Detection Rate: 0.0%
+
+NoFilter_Dummy:
+  RMS X: 0.000
+  RMS Y: 0.000
+  RMS Combined: 0.000
+  Detection Rate: 100.0%
+
+Gaussian_Dummy:
+  RMS X: 0.000
+  RMS Y: 0.000
+  RMS Combined: 0.000
+  Detection Rate: 100.0%
+
+Median_Dummy:
+  RMS X: 0.000
+  RMS Y: 0.000
+  RMS Combined: 0.000
+  Detection Rate: 100.0%
+
+Bilateral_Dummy:
+  RMS X: 0.000
+  RMS Y: 0.000
+  RMS Combined: 0.000
+  Detection Rate: 100.0%
+
+Background_Dummy:
+  RMS X: 0.000
+  RMS Y: 0.000
+  RMS Combined: 0.000
+  Detection Rate: 100.0%
+
+Morphological_Dummy:
+  RMS X: 0.000
+  RMS Y: 0.000
+  RMS Combined: 0.000
+  Detection Rate: 100.0%
+
+Fourier_Dummy:
+  RMS X: 0.000
+  RMS Y: 0.000
+  RMS Combined: 0.000
+  Detection Rate: 100.0%

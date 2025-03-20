@@ -4,6 +4,10 @@ from .base_filter import BaseFilter
 
 class MedianFilter(BaseFilter):
     def __init__(self, kernel_size=5):
+        """
+        Initialize the MedianFilter
+        :param kernel_size: Size of the kernel (must be odd)
+        """
         self.kernel_size = kernel_size if kernel_size % 2 == 1 else kernel_size + 1
 
     def apply(self, image):

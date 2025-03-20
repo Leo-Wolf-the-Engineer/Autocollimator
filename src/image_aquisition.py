@@ -4,6 +4,13 @@ from pyqtgraph.Qt import QtCore, QtWidgets
 import numpy as np
 import cv2
 import time
+import sys
+#rom os.path import dirname, abspath
+#from os.path import join
+
+# Add the project root directory to the Python path
+#project_root = dirname(dirname(abspath(__file__)))
+#sys.path.append(project_root)
 
 class CameraManager:
     """
@@ -24,7 +31,7 @@ class CameraManager:
             raise Exception("camera_type USB is not implemented yet")
 
         if camera_type == "AVI":
-            self.camera = AVIReader("20250106_10um_crosshair_trimmed.avi")
+            self.camera = AVIReader("src/20250106_10um_crosshair_trimmed.avi")
 
     def get_image_size(self) -> tuple:
         """
@@ -135,8 +142,8 @@ class AVIReader:
     AVIReader class to read frames from an AVI file
     """
     def __init__(self, video_path):
-        #self.video_filename = "20250106_10um_crosshair.avi"
-        self.cap = cv2.VideoCapture(video_path)
+        self.video_path = "20250106_10um_crosshair.avi"
+        self.cap = cv2.VideoCapture(self.video_path)
         if not self.cap.isOpened():
             raise ValueError(f"Cannot open video file: {video_path}")
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)
