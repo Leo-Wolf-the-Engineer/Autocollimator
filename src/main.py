@@ -8,8 +8,6 @@ from win_live import AutocollimatorLiveWindowThread
 from data_storage import ContinousDataStorage
 from data_storage import POIDataStorage
 import logging
-import time
-import cv2
 
 # Configure logging with location information
 logging.basicConfig(
@@ -42,7 +40,7 @@ frame_manager = FrameManager()
 frame_queue = queue.Queue(maxsize=5)  # Limit queue size to prevent memory issues
 camera = CameraManager("AVI")
 imagewidth, imageheight = camera.get_image_size()
-processor = ImageProcessor("Peakfinder", imagewidth, imageheight)
+processor = ImageProcessor("AccurateGaussian", imagewidth, imageheight)
 ContinousStorage = ContinousDataStorage(CONVERSION_FACTOR)
 straightness_data = POIDataStorage(CONVERSION_FACTOR)
 app = QtWidgets.QApplication([])
