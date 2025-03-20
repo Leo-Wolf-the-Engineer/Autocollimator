@@ -99,7 +99,7 @@ class BaslerCamera:
         self.camera.BslExposureTimeMode.SetValue('Standard') #UltraShort / Standard
 
         # Set the exposure time
-        self.camera.ExposureTime.SetValue(20000.0)
+        #self.camera.ExposureTime.SetValue(20000.0)
 
         # Start grabbing images
         self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
@@ -236,5 +236,5 @@ def captureIntoVideo():
         out.release()
 
 if __name__ == "__main__":
-    testing()
-    #captureIntoVideo()
+    #testing()
+    captureIntoVideo()
