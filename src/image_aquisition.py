@@ -11,7 +11,7 @@ class CameraManager:
     camera_type: str
         The type of camera to use. Must be either 'Basler' or 'USB'
     """
-    def __init__(self, camera_type: str, **kwargs) -> None:
+    def __init__(self, camera_type='Basler', **kwargs) -> None:
         self.camera = None
 
         if camera_type == "Basler":
@@ -20,7 +20,7 @@ class CameraManager:
             raise Exception("camera_type USB is not implemented yet")
         elif camera_type == "AVI":
             self.camera = AVIReader(**kwargs)
-        else
+        else:
             raise ValueError("camera_type does not exist")
 
     def get_image_size(self) -> tuple:
@@ -60,7 +60,7 @@ class BaslerCamera:
     """
     BaslerCamera class to manage the Basler Ace 2 camera
     """
-    def __init__(self, Width=1936, Height=1216, PixelFormat='Mono8', ExposureMode='Standard', Exposuretime) -> None:
+    def __init__(self, Width=1936, Height=1216, PixelFormat='Mono8', ExposureMode='Standard', Exposuretime=None) -> None:
         """
         Initialize the Basler Ace 2 camera
         Set all setting to smart values

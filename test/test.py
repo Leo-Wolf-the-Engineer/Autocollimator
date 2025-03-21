@@ -13,5 +13,3 @@ class TestAutocollimatorLiveWindowThread(unittest.TestCase):
         self.assertEqual(thread.isRunning(), True)
         thread.quit()
         app.quit()
-
-

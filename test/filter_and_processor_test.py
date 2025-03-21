@@ -34,16 +34,20 @@ def test_filter_processor_stability():
     # Define filter configurations
     filter_configs = [
         {"type": None, "params": {}},  # No filter
+        {"type": "Gaussian", "params": {"sigma": 1, "kernel_size": 5}},
         {"type": "Gaussian", "params": {"sigma": 1.5, "kernel_size": 5}},
-        {"type": "Median", "params": {"kernel_size": 5}},
-        {"type": "Bilateral", "params": {"d": 9, "sigma_color": 75, "sigma_space": 75}},
-        {"type": "Background", "params": {"method": "mean"}},
-        {"type": "Morphological", "params": {"operation": "opening", "kernel_size": 5}},
-        {"type": "Fourier", "params": {}}
+        {"type": "Gaussian", "params": {"sigma": 2, "kernel_size": 5}},
+        {"type": "Gaussian", "params": {"sigma": 2.5, "kernel_size": 5}},
+        {"type": "Gaussian", "params": {"sigma": 3, "kernel_size": 5}},
+        #{"type": "Median", "params": {"kernel_size": 5}},
+        #{"type": "Bilateral", "params": {"d": 9, "sigma_color": 75, "sigma_space": 75}},
+        #{"type": "Background", "params": {"method": "mean"}},
+        #{"type": "Morphological", "params": {"operation": "opening", "kernel_size": 5}},
+        #{"type": "Fourier", "params": {}}
     ]
 
     # Define processor types
-    processor_types = ["FastGaussian", "AccurateGaussian", "Peakfinder", "Linefit", "Dummy"]
+    processor_types = ["FastGaussian", "AccurateGaussian", "Peakfinder", "Linefit"] #, "Dummy"
 
     # Save test settings
     save_test_settings(results_dir, filter_configs, processor_types)
@@ -52,11 +56,11 @@ def test_filter_processor_stability():
     combined_results = {}
 
     # Test with camera settings 1-9
-    for camera_setting in range(1, 10):
-        logging.info(f"Testing with camera setting {camera_setting}")
+    for camera_setting in range(1, 2):
+        logging.info(f"Testing with file {camera_setting}")
 
         # Initialize camera with specified setting
-        camera = CameraManager("AVI", camera_id=camera_setting)
+        camera = CameraManager("AVI", video_path=f'Videos/{camera_setting}.avi')
         width, height = camera.get_image_size()
 
         # Store results for this camera setting

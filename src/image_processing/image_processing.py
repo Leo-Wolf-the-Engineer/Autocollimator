@@ -35,7 +35,7 @@ class ImageProcessor:
             self.Processor = Linefit(**kwargs)
         elif processor_type  == "Dummy":
             self.Processor = Dummy(**kwargs)
-        else
+        else:
             raise ValueError("processor_type does not exist")
 
     def process_frame(self, frame):
