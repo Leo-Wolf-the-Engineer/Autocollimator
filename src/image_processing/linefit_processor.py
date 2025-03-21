@@ -43,10 +43,6 @@ class Linefit:
         """Process the frame using the Linefit method"""
         self.latest_frame = frame
 
-        # Convert 16-bit to 8-bit if necessary
-        if frame.dtype == np.uint16:
-            frame = (frame / 256).astype(np.uint8)
-
         # Define ROI to focus processing on center area
         height, width = frame.shape[:2]
         roi_x = int(width * 0.25)

@@ -16,7 +16,7 @@ logging.basicConfig(
 )
 
 class ImageProcessor:
-    def __init__(self, processor_type, Width, Heigth):
+    def __init__(self, processor_type, Width, Heigth, **kwargs):
         """
         Initialize the ImageProcessor
         :param processor_type: must be either 'FastGaussian', 'AccurateGaussian', 'Peakfinder' or 'Linefit'
@@ -25,20 +25,18 @@ class ImageProcessor:
         self.Width = Width
         self.Heigth = Heigth
 
-        if processor_type not in ["FastGaussian", "AccurateGaussian", "Peakfinder", "Linefit", "Dummy"]:
-            raise ValueError("processor_type does not exist")
-        self.camera_type = processor_type
-
         if processor_type == "FastGaussian":
-            self.Processor = FastGaussian()
+            self.Processor = FastGaussian(**kwargs)
         elif processor_type == "AccurateGaussian":
-            self.Processor = AccurateGaussian()
+            self.Processor = AccurateGaussian(**kwargs)
         elif processor_type == "Peakfinder":
-            self.Processor = Peakfinder()
+            self.Processor = Peakfinder(**kwargs)
         elif processor_type == "Linefit":
-            self.Processor = Linefit()
+            self.Processor = Linefit(**kwargs)
         elif processor_type  == "Dummy":
-            self.Processor = Dummy()
+            self.Processor = Dummy(**kwargs)
+        else
+            raise ValueError("processor_type does not exist")
 
     def process_frame(self, frame):
         """

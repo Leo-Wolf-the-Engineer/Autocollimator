@@ -4,7 +4,7 @@ from numba import jit
 
 
 class FastGaussian:
-    def __init__(self):
+    def __init__(self, roi_size=256):
         self.latest_frame = None
         # Pre-allocate arrays
         self.intensity_x = None
@@ -13,6 +13,7 @@ class FastGaussian:
         self.y = None
         # Cache for intermediate results
         self.last_frame_hash = None
+        self.roi_size = roi_size
 
     @staticmethod
     @jit(nopython=True)
@@ -53,13 +54,12 @@ class FastGaussian:
 
         # Define ROI if needed (process center portion for large frames)
         h, w = frame.shape
-        roi_size = 256  # Adjust based on your needs
 
-        if max(h, w) > roi_size:
-            start_x = max(0, w//2 - roi_size//2)
-            end_x = min(w, start_x + roi_size)
-            start_y = max(0, h//2 - roi_size//2)
-            end_y = min(h, start_y + roi_size)
+        if max(h, w) > self.roi_size:
+            start_x = max(0, w//2 - self.roi_size//2)
+            end_x = min(w, start_x + self.roi_size)
+            start_y = max(0, h//2 - self.roi_size//2)
+            end_y = min(h, start_y + self.roi_size)
             roi = frame[start_y:end_y, start_x:end_x]
         else:
             roi = frame

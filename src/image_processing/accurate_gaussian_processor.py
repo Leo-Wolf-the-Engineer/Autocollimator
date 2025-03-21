@@ -2,8 +2,9 @@ import numpy as np
 from scipy.optimize import curve_fit
 
 class AccurateGaussian:
-    def __init__(self, ):
+    def __init__(self, sigma=10):
         self.latest_frame = None
+        self.sigma = sigma
 
     def gaussian(self, x, a, x0, sigma):
         """
@@ -31,7 +32,7 @@ class AccurateGaussian:
         # Fit Gaussian in the X direction
         x = np.arange(frame.shape[1])
         try:
-            popt_x, _ = curve_fit(self.gaussian, x, intensity_x, p0=[np.max(intensity_x), np.argmax(intensity_x), 10])
+            popt_x, _ = curve_fit(self.gaussian, x, intensity_x, p0=[np.max(intensity_x), np.argmax(intensity_x), self.sigma])
             peak_x = popt_x[1]
         except RuntimeError:
             peak_x = np.nan
@@ -39,7 +40,7 @@ class AccurateGaussian:
         # Fit Gaussian in the Y direction
         y = np.arange(frame.shape[0])
         try:
-            popt_y, _ = curve_fit(self.gaussian, y, intensity_y, p0=[np.max(intensity_y), np.argmax(intensity_y), 10])
+            popt_y, _ = curve_fit(self.gaussian, y, intensity_y, p0=[np.max(intensity_y), np.argmax(intensity_y), self.sigma])
             peak_y = popt_y[1]
         except RuntimeError:
             peak_y = np.nan

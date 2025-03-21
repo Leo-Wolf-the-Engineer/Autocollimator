@@ -4,13 +4,6 @@ from pyqtgraph.Qt import QtCore, QtWidgets
 import numpy as np
 import cv2
 import time
-import sys
-#rom os.path import dirname, abspath
-#from os.path import join
-
-# Add the project root directory to the Python path
-#project_root = dirname(dirname(abspath(__file__)))
-#sys.path.append(project_root)
 
 class CameraManager:
     """
@@ -18,20 +11,17 @@ class CameraManager:
     camera_type: str
         The type of camera to use. Must be either 'Basler' or 'USB'
     """
-    def __init__(self, camera_type: str) -> None:
-        if camera_type not in ["Basler", "USB", "AVI"]:
-            raise ValueError("camera_type must be either 'Basler', 'USB' or 'AVI'")
-        self.camera_type = camera_type
+    def __init__(self, camera_type: str, **kwargs) -> None:
         self.camera = None
 
         if camera_type == "Basler":
-            self.camera = BaslerCamera()
-
-        if camera_type == "USB":
+            self.camera = BaslerCamera(**kwargs)
+        elif camera_type == "USB":
             raise Exception("camera_type USB is not implemented yet")
-
-        if camera_type == "AVI":
-            self.camera = AVIReader("src/20250106_10um_crosshair_trimmed.avi")
+        elif camera_type == "AVI":
+            self.camera = AVIReader(**kwargs)
+        else
+            raise ValueError("camera_type does not exist")
 
     def get_image_size(self) -> tuple:
         """
@@ -49,20 +39,13 @@ class CameraManager:
         collapes RGB to grayscale if necessary
         :return: np.ndarray
         """
-        if self.camera is not None:
+        try:
             frame = self.camera.retrieve_frame()
             if len(frame.shape) == 3:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             return frame
-
-            #if len(frame.shape) == 3 and frame.shape[2] == 3:
-            #    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            #elif len(frame.shape) == 2:
-            #    gray = frame
-            #else:
-            #    raise ValueError("Unexpected number of channels in the input image")
-        else:
-            raise Exception("No camera initialized")
+        except Exception as e:
+            raise Exception(f"Failed to retrieve frame: {str(e)}")
 
     def close(self) -> None:
         """
@@ -77,7 +60,7 @@ class BaslerCamera:
     """
     BaslerCamera class to manage the Basler Ace 2 camera
     """
-    def __init__(self):
+    def __init__(self, Width=1936, Height=1216, PixelFormat='Mono8', ExposureMode='Standard', Exposuretime) -> None:
         """
         Initialize the Basler Ace 2 camera
         Set all setting to smart values
@@ -87,19 +70,12 @@ class BaslerCamera:
 
         # Open the camera
         self.camera.Open()
-
-        # Set the pixel format
-        self.camera.PixelFormat.SetValue('Mono8')
-
-        # Set the width and height
-        self.camera.Width.SetValue(1936)
-        self.camera.Height.SetValue(1216)
-
-        # Set the exposure time mode
-        self.camera.BslExposureTimeMode.SetValue('Standard') #UltraShort / Standard
-
-        # Set the exposure time
-        #self.camera.ExposureTime.SetValue(20000.0)
+        self.camera.PixelFormat.SetValue(PixelFormat)
+        self.camera.Width.SetValue(Width)
+        self.camera.Height.SetValue(Height)
+        self.camera.BslExposureTimeMode.SetValue(ExposureMode) #UltraShort / Standard
+        if Exposuretime is not None:
+            self.camera.ExposureTime.SetValue(Exposuretime)
 
         # Start grabbing images
         self.camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
@@ -141,8 +117,12 @@ class AVIReader:
     """
     AVIReader class to read frames from an AVI file
     """
-    def __init__(self, video_path):
-        self.video_path = "20250106_10um_crosshair.avi"
+    def __init__(self, video_path: str):
+        """
+        Initialize the AVIReader with a video file
+        :param video_path: str
+        """
+        self.video_path = video_path
         self.cap = cv2.VideoCapture(self.video_path)
         if not self.cap.isOpened():
             raise ValueError(f"Cannot open video file: {video_path}")
@@ -212,7 +192,6 @@ def captureIntoVideo():
     # Initialize the video writer
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter('output.avi', fourcc, 40.0, (1936, 1216), isColor=False)
-
     start_time = time.time()
 
     try:

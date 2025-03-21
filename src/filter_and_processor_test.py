@@ -1,17 +1,9 @@
 import numpy as np
-import cv2
 import logging
-import time
 from pathlib import Path
 import matplotlib.pyplot as plt
-from typing import Dict, List, Tuple
+from typing import Dict
 import pandas as pd
-#import sys
-#from os.path import dirname, abspath
-
-# Add the project root directory to the Python path
-#project_root = dirname(dirname(abspath(__file__)))
-#sys.path.append(project_root)
 
 # Now import your project modules
 from src.image_filter.image_filter import ImageFilter
