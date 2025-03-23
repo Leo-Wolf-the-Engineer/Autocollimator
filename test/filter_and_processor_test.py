@@ -17,7 +17,6 @@ from src.image_aquisition import CameraManager
 
 def test_filter_processor_stability():
     """Test all filter and processor combinations for stability using multiple camera configurations
-
     Args:
         pixels_to_arcsec: Conversion factor from pixels to arcseconds (calibration factor)
     """
