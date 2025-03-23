@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from typing import Dict, List
 import pandas as pd
 import datetime
+import time
+import cv2
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -14,11 +16,23 @@ from src.image_processing.image_processing import ImageProcessor
 from src.image_aquisition import CameraManager
 
 def test_filter_processor_stability():
-    """Test all filter and processor combinations for stability using multiple camera configurations"""
+    """Test all filter and processor combinations for stability using multiple camera configurations
+
+    Args:
+        pixels_to_arcsec: Conversion factor from pixels to arcseconds (calibration factor)
+    """
+    PIXEL_PITCH = 3.45e-6  # in meters
+    FOCAL_LENGTH = 0.385  # in meters
+    pixels_to_arcsec = PIXEL_PITCH / (2 * FOCAL_LENGTH) * 180 / np.pi * 3600
+    print(pixels_to_arcsec)
     # Create timestamp for folder name
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     results_dir = Path(f"filter_test_results_{timestamp}")
     results_dir.mkdir(exist_ok=True)
+
+    # Create a subdirectory for sample images
+    image_dir = results_dir / "sample_images"
+    image_dir.mkdir(exist_ok=True)
 
     # Setup logging
     log_file = results_dir / "test_log.txt"
@@ -31,32 +45,31 @@ def test_filter_processor_stability():
         ]
     )
 
+    # Log conversion factor
+    logging.info(f"Using conversion factor: {pixels_to_arcsec} arcseconds/pixel")
+
     # Define filter configurations
     filter_configs = [
         {"type": None, "params": {}},  # No filter
-        {"type": "Gaussian", "params": {"sigma": 1, "kernel_size": 5}},
-        {"type": "Gaussian", "params": {"sigma": 1.5, "kernel_size": 5}},
-        {"type": "Gaussian", "params": {"sigma": 2, "kernel_size": 5}},
-        {"type": "Gaussian", "params": {"sigma": 2.5, "kernel_size": 5}},
-        {"type": "Gaussian", "params": {"sigma": 3, "kernel_size": 5}},
+        #{"type": "Gaussian", "params": {"sigma": 1, "kernel_size": 19}},
         #{"type": "Median", "params": {"kernel_size": 5}},
-        #{"type": "Bilateral", "params": {"d": 9, "sigma_color": 75, "sigma_space": 75}},
-        #{"type": "Background", "params": {"method": "mean"}},
-        #{"type": "Morphological", "params": {"operation": "opening", "kernel_size": 5}},
-        #{"type": "Fourier", "params": {}}
+        {"type": "Bilateral", "params": {"d": 9, "sigma_color": 75, "sigma_space": 75}},
+        {"type": "Background", "params": {"method": "square_and_divide"}},
+        {"type": "Morphological", "params": {"operation": "opening", "kernel_size": 5}},
+        #{"type": "Fourier", "params": {"cutoff": 0.5}}
     ]
 
     # Define processor types
-    processor_types = ["FastGaussian", "AccurateGaussian", "Peakfinder", "Linefit"] #, "Dummy"
+    processor_types = ["WeightedPeakfinder", "Peakfinder"] #,AccurateGaussian "Dummy" "FastGaussian", , "Peakfinder", "Linefit"
 
     # Save test settings
-    save_test_settings(results_dir, filter_configs, processor_types)
+    save_test_settings(results_dir, filter_configs, processor_types, pixels_to_arcsec)
 
     # Store all results across camera settings
     combined_results = {}
 
     # Test with camera settings 1-9
-    for camera_setting in range(1, 2):
+    for camera_setting in [1, 2, 3, 6,7]:
         logging.info(f"Testing with file {camera_setting}")
 
         # Initialize camera with specified setting
@@ -79,18 +92,21 @@ def test_filter_processor_stability():
 
                 # Create filter (or None)
                 if filter_type:
-                    image_filter = ImageFilter(filter_type, **filter_params)
+                    # Fix: Use filter_type as keyword argument to avoid conflicts
+                    image_filter = ImageFilter(filter_type=filter_type, **filter_params)
                     combo_name = f"{filter_type}_{proc_type}"
                 else:
                     image_filter = None
                     combo_name = f"NoFilter_{proc_type}"
 
-                combo_setting_name = f"{combo_name}_setting{camera_setting}"
+                combo_setting_name = f"{camera_setting}_{combo_name}"
                 logging.info(f"Testing combination: {combo_setting_name}")
 
-                # Store positions
+                # Store positions and timing data
                 x_positions = []
                 y_positions = []
+                frame_times = []
+                first_image_saved = False
 
                 # Process frames
                 for i in range(num_frames):
@@ -99,6 +115,9 @@ def test_filter_processor_stability():
 
                     # Get frame from camera
                     frame = camera.retrieve_frame()
+
+                    # Start timing
+                    start_time = time.time()
 
                     # Apply filter if available
                     if image_filter:
@@ -114,14 +133,35 @@ def test_filter_processor_stability():
                     try:
                         x_vals, y_vals = processor.process_frame(filtered_frame)
 
-                        # Store the first detected point if available
+                        # End timing after processing is complete
+                        end_time = time.time()
+                        frame_times.append(end_time - start_time)
+
+                        # Store the first detected point if available, convert to arcseconds
                         if len(x_vals) > 0 and len(y_vals) > 0:
-                            x_positions.append(x_vals[0])
-                            y_positions.append(y_vals[0])
+                            x_positions.append(x_vals[0] * pixels_to_arcsec)
+                            y_positions.append(y_vals[0] * pixels_to_arcsec)
+
+                            # For the first frame where a position is detected, save a copy with the detected position marked
+                            if not first_image_saved:
+                                first_image_saved = True
+                                marked_frame = filtered_frame.copy()
+                                # Draw a small red dot at the detected position
+                                cv2.circle(marked_frame, (int(x_vals[0]+width/2), int(y_vals[0]+height/2)), 5, (0, 0, 255), -1)
+                                cv2.imwrite(str(image_dir / f"{combo_setting_name}_marked.png"), marked_frame)
                         else:
                             logging.warning(f"No position detected for frame {i} in {combo_setting_name}")
                     except Exception as e:
                         logging.error(f"Processing error on frame {i}: {str(e)}")
+                        # End timing even if there's an error
+                        end_time = time.time()
+                        frame_times.append(end_time - start_time)
+
+                # Calculate average processing time
+                avg_processing_time = np.mean(frame_times) if frame_times else float('nan')
+                fps = 1.0 / avg_processing_time if avg_processing_time > 0 else float('nan')
+
+                logging.info(f"Average processing time for {combo_setting_name}: {avg_processing_time*1000:.2f} ms ({fps:.1f} FPS)")
 
                 # Calculate stability metrics if we have enough data
                 if len(x_positions) > 10:
@@ -146,11 +186,13 @@ def test_filter_processor_stability():
                         "combined_rms": combined_rms,
                         "detection_rate": len(x_positions) / num_frames,
                         "x_positions": x_positions,
-                        "y_positions": y_positions
+                        "y_positions": y_positions,
+                        "avg_processing_time": avg_processing_time,
+                        "fps": fps
                     }
 
-                    logging.info(f"Results for {combo_setting_name}: RMS_X={x_rms:.3f}, RMS_Y={y_rms:.3f}, "
-                                f"Combined={combined_rms:.3f}, Detection={len(x_positions)/num_frames:.1%}")
+                    logging.info(f"Results for {combo_setting_name}: RMS_X={x_rms:.3f} arcsec, RMS_Y={y_rms:.3f} arcsec, "
+                                f"Combined={combined_rms:.3f} arcsec, Detection={len(x_positions)/num_frames:.1%}")
                 else:
                     logging.warning(f"Insufficient data for {combo_setting_name}")
                     all_results[combo_setting_name] = {
@@ -160,7 +202,9 @@ def test_filter_processor_stability():
                         "x_rms": float('nan'),
                         "y_rms": float('nan'),
                         "combined_rms": float('nan'),
-                        "detection_rate": len(x_positions) / num_frames
+                        "detection_rate": len(x_positions) / num_frames,
+                        "avg_processing_time": avg_processing_time,
+                        "fps": fps
                     }
 
         # Add this camera setting's results to the combined results
@@ -174,13 +218,16 @@ def test_filter_processor_stability():
 
     return combined_results
 
-def save_test_settings(output_dir: Path, filter_configs: List, processor_types: List):
+def save_test_settings(output_dir: Path, filter_configs: List, processor_types: List, pixels_to_arcsec: float):
     """Save test settings to a text file"""
     with open(output_dir / "test_settings.txt", "w") as f:
         f.write("Filter and Processor Stability Test Settings\n")
         f.write("==========================================\n\n")
 
         f.write("Test Date and Time: " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
+
+        # Add conversion factor information
+        f.write(f"Pixel to Arcsecond Conversion: {pixels_to_arcsec} arcseconds/pixel\n\n")
 
         f.write("Filter Configurations:\n")
         for i, config in enumerate(filter_configs):
@@ -195,7 +242,11 @@ def save_test_settings(output_dir: Path, filter_configs: List, processor_types: 
         f.write("Frames per test: 50\n")
 
 def generate_stability_report(results: Dict, output_dir: Path):
-    """Generate comprehensive report of stability tests with combined plots"""
+    """Generate comprehensive report of stability tests with interactive Plotly visualizations"""
+    import plotly.graph_objects as go
+    import plotly.express as px
+    from plotly.subplots import make_subplots
+
     # Create summary dataframe
     data = []
     for combo_name, metrics in results.items():
@@ -207,7 +258,9 @@ def generate_stability_report(results: Dict, output_dir: Path):
             "X RMS": metrics["x_rms"],
             "Y RMS": metrics["y_rms"],
             "Combined RMS": metrics["combined_rms"],
-            "Detection Rate": metrics["detection_rate"]
+            "Detection Rate": metrics["detection_rate"],
+            "Avg Processing Time": metrics.get("avg_processing_time", float('nan')),
+            "FPS": metrics.get("fps", float('nan'))
         })
 
     df = pd.DataFrame(data)
@@ -218,8 +271,10 @@ def generate_stability_report(results: Dict, output_dir: Path):
     # Save to CSV
     df_sorted.to_csv(output_dir / "stability_results.csv", index=False)
 
-    # Create single plot with all position data
-    plt.figure(figsize=(15, 10))
+    # Create interactive plot with all position data
+    fig = make_subplots(rows=2, cols=1,
+                        subplot_titles=("X Positions for All Combinations",
+                                        "Y Positions for All Combinations",))
 
     # Get unique filter and processor combinations
     unique_combinations = set()
@@ -227,52 +282,65 @@ def generate_stability_report(results: Dict, output_dir: Path):
         base_combo = '_'.join(combo.split('_')[:-1])  # Remove setting part
         unique_combinations.add(base_combo)
 
-    # Plot all X positions
-    plt.subplot(2, 1, 1)
-    for base_combo in unique_combinations:
-        for setting in range(1, 10):
-            combo_name = f"{base_combo}_setting{setting}"
-            if combo_name in results and "x_positions" in results[combo_name]:
-                plt.plot(results[combo_name]["x_positions"],
-                        alpha=0.7,
-                        label=f"{combo_name}")
+    # Add X position traces
+    for combo_name, metrics in results.items():
+        if "x_positions" in metrics:
+            fig.add_trace(
+                go.Scatter(
+                    x=list(range(len(metrics["x_positions"]))),
+                    y=metrics["x_positions"],
+                    mode='lines',
+                    name=combo_name,
+                    legendgroup=combo_name,
+                    opacity=0.7
+                ),
+                row=1, col=1
+            )
 
-    plt.title("X Positions for All Combinations")
-    plt.xlabel("Frame")
-    plt.ylabel("X Position (pixels)")
-    plt.grid(True, alpha=0.3)
+    # Add Y position traces
+    for combo_name, metrics in results.items():
+        if "y_positions" in metrics:
+            fig.add_trace(
+                go.Scatter(
+                    x=list(range(len(metrics["y_positions"]))),
+                    y=metrics["y_positions"],
+                    mode='lines',
+                    name=combo_name,
+                    legendgroup=combo_name,
+                    showlegend=False,  # Don't duplicate in legend
+                    opacity=0.7
+                ),
+                row=2, col=1
+            )
 
-    # Plot all Y positions
-    plt.subplot(2, 1, 2)
-    for base_combo in unique_combinations:
-        for setting in range(1, 10):
-            combo_name = f"{base_combo}_setting{setting}"
-            if combo_name in results and "y_positions" in results[combo_name]:
-                plt.plot(results[combo_name]["y_positions"],
-                        alpha=0.7,
-                        label=f"{combo_name}")
+    # Update layout
+    fig.update_layout(
+        height=1200,
+        width=1600,
+        title_text="Position Tracking for All Filter-Processor Combinations",
+        showlegend=True,
+        legend=dict(
+            groupclick="toggleitem",
+            orientation="h",
+            yanchor="bottom",
+            y=-0.2,
+            xanchor="center",
+            x=0.5
+        )
+    )
 
-    plt.title("Y Positions for All Combinations")
-    plt.xlabel("Frame")
-    plt.ylabel("Y Position (pixels)")
-    plt.grid(True, alpha=0.3)
+    # Update axes - now using arcseconds units
+    fig.update_xaxes(title_text="Frame", row=1, col=1)
+    fig.update_yaxes(title_text="X Position (arcsec)", row=1, col=1)
+    fig.update_xaxes(title_text="Frame", row=2, col=1)
+    fig.update_yaxes(title_text="Y Position (arcsec)", row=2, col=1)
 
-    plt.tight_layout()
-    plt.savefig(output_dir / "all_positions.png")
-    plt.close()
+    # Save as HTML
+    fig.write_html(output_dir / "all_positions.html")
 
-    # Create a 3D plot for RMS values
-    fig = plt.figure(figsize=(15, 12))
-    ax = fig.add_subplot(111, projection='3d')
-
-    # Extract unique filter types and processor types
+    # Create heatmap of average RMS for filter and processor combinations
     filter_types = sorted(list(df["Filter"].unique()))
     processor_types = sorted(list(df["Processor"].unique()))
-
-    # Create coordinate matrices
-    x_indices = np.arange(len(filter_types))
-    y_indices = np.arange(len(processor_types))
-    x_mesh, y_mesh = np.meshgrid(x_indices, y_indices)
 
     # Create RMS value matrix
     z_values = np.zeros((len(processor_types), len(filter_types)))
@@ -281,33 +349,66 @@ def generate_stability_report(results: Dict, output_dir: Path):
     # Calculate average RMS for each filter-processor combo across camera settings
     for i, processor in enumerate(processor_types):
         for j, filter_type in enumerate(filter_types):
-            # Get data for this combination across all camera settings
             combo_data = df[(df["Filter"] == filter_type) & (df["Processor"] == processor)]
             if not combo_data.empty:
-                # Average the RMS values across camera settings
                 z_values[i, j] = combo_data["Combined RMS"].mean()
 
-    # Plot the 3D surface
-    surf = ax.plot_surface(x_mesh, y_mesh, z_values, cmap=cm.coolwarm,
-                         linewidth=0, antialiased=True, alpha=0.8)
+    # Calculate FPS value matrix
+    fps_values = np.zeros((len(processor_types), len(filter_types)))
+    fps_values.fill(np.nan)  # Fill with NaN to handle missing combinations
 
-    # Set labels
-    ax.set_xlabel('Filter Type')
-    ax.set_ylabel('Processor Type')
-    ax.set_zlabel('Average RMS')
-    ax.set_title('3D Visualization of Stability (RMS) by Filter and Processor')
+    # Calculate average FPS for each filter-processor combo across camera settings
+    for i, processor in enumerate(processor_types):
+        for j, filter_type in enumerate(filter_types):
+            combo_data = df[(df["Filter"] == filter_type) & (df["Processor"] == processor)]
+            if not combo_data.empty and not combo_data["FPS"].isna().all():
+                fps_values[i, j] = combo_data["FPS"].mean()
 
-    # Set axis ticks
-    ax.set_xticks(x_indices)
-    ax.set_xticklabels(filter_types, rotation=45)
-    ax.set_yticks(y_indices)
-    ax.set_yticklabels(processor_types)
+    # Create figure with 2 subplots (side by side)
+    fig_3d = make_subplots(rows=1, cols=2,
+                          specs=[[{'type': 'surface'}, {'type': 'surface'}]],
+                          subplot_titles=('Stability (RMS)', 'Performance (FPS)'))
 
-    # Add a color bar
-    fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
+    # Add RMS surface plot
+    fig_3d.add_trace(
+        go.Surface(z=z_values, x=filter_types, y=processor_types, colorscale='Viridis',
+                   showscale=True, colorbar_x=0.4, name="RMS (arcsec)"),
+        row=1, col=1
+    )
 
-    plt.savefig(output_dir / "3d_rms_visualization.png")
-    plt.close()
+    # Add FPS surface plot
+    fig_3d.add_trace(
+        go.Surface(z=fps_values, x=filter_types, y=processor_types, colorscale='Plasma',
+                   showscale=True, colorbar_x=0.95, name="FPS"),
+        row=1, col=2
+    )
+
+    # Update layout
+    fig_3d.update_layout(
+        title='3D Visualization of Stability (RMS) and Performance (FPS)',
+        autosize=False,
+        width=1800,
+        height=800,
+        margin=dict(l=65, r=50, b=65, t=90)
+    )
+
+    # Update scene properties for both plots
+    fig_3d.update_scenes(
+        xaxis_title='Filter Type',
+        yaxis_title='Processor Type',
+        zaxis_title='Average RMS (arcsec)',
+        row=1, col=1
+    )
+
+    fig_3d.update_scenes(
+        xaxis_title='Filter Type',
+        yaxis_title='Processor Type',
+        zaxis_title='FPS',
+        row=1, col=2
+    )
+
+    # Save 3D plot as HTML
+    fig_3d.write_html(output_dir / "3d_rms_visualization.html")
 
     # Create summary text report
     with open(output_dir / "stability_summary.txt", "w") as f:
@@ -317,16 +418,20 @@ def generate_stability_report(results: Dict, output_dir: Path):
         f.write("Combinations sorted by stability (lowest RMS first):\n")
         for _, row in df_sorted.iterrows():
             if not np.isnan(row["Combined RMS"]):
-                f.write(f"{row['Combination']}: RMS={row['Combined RMS']:.3f}, "
+                f.write(f"{row['Combination']}: RMS={row['Combined RMS']:.3f} arcsec, "
                       f"Detection Rate={row['Detection Rate']:.1%}\n")
 
         f.write("\n\nDetailed Results:\n")
         for combo_name, metrics in results.items():
             f.write(f"\n{combo_name}:\n")
-            f.write(f"  RMS X: {metrics['x_rms']:.3f}\n")
-            f.write(f"  RMS Y: {metrics['y_rms']:.3f}\n")
-            f.write(f"  RMS Combined: {metrics['combined_rms']:.3f}\n")
+            f.write(f"  RMS X: {metrics['x_rms']:.3f} arcsec\n")
+            f.write(f"  RMS Y: {metrics['y_rms']:.3f} arcsec\n")
+            f.write(f"  RMS Combined: {metrics['combined_rms']:.3f} arcsec\n")
             f.write(f"  Detection Rate: {metrics['detection_rate']:.1%}\n")
+            if "avg_processing_time" in metrics:
+                f.write(f"  Avg Processing Time: {metrics['avg_processing_time']*1000:.2f} ms\n")
+            if "fps" in metrics:
+                f.write(f"  FPS: {metrics['fps']:.1f}\n")
 
 if __name__ == "__main__":
     test_filter_processor_stability()

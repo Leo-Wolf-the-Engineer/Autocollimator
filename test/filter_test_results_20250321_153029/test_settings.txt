@@ -1,0 +1,26 @@
+Filter and Processor Stability Test Settings
+==========================================
+
+Test Date and Time: 2025-03-21 15:30:29
+
+Pixel to Arcsecond Conversion: 0.9241734825356914 arcseconds/pixel
+
+Filter Configurations:
+1. Type: None
+   Parameters: {}
+2. Type: Gaussian
+   Parameters: {'sigma': 1, 'kernel_size': 19}
+3. Type: Median
+   Parameters: {'kernel_size': 5}
+4. Type: Bilateral
+   Parameters: {'d': 9, 'sigma_color': 75, 'sigma_space': 75}
+5. Type: Background
+   Parameters: {'method': 'mean'}
+6. Type: Morphological
+   Parameters: {'operation': 'opening', 'kernel_size': 5}
+7. Type: Fourier
+   Parameters: {'cutoff': 0.5}
+
+Processor Types:
+1. AccurateGaussian
+2. Peakfinder

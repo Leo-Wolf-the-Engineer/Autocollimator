@@ -4,13 +4,13 @@ import numpy as np
 from .base_filter import BaseFilter
 
 class FourierFilter(BaseFilter):
-    def __init__(self, filter_type='lowpass', cutoff=0.5):
+    def __init__(self, type='lowpass', cutoff=0.5):
         """
         Initialize the FourierFilter
         :param filter_type: must be either 'lowpass' or 'highpass'
         :param cutoff: cutoff frequency as a fraction of the image size
         """
-        self.filter_type = filter_type
+        self.filter_type = type
         self.cutoff = cutoff
 
     def apply(self, image):

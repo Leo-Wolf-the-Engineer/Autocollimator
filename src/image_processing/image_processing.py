@@ -7,6 +7,7 @@ from image_processing.accurate_gaussian_processor import AccurateGaussian
 from image_processing.peakfinder_processor import Peakfinder
 from image_processing.linefit_processor import Linefit
 from image_processing.dummy_processor import Dummy
+from image_processing.weighted_peakfinder_processor import WeightedPeakfinder
 
 # Configure logging with location information
 logging.basicConfig(
@@ -19,7 +20,7 @@ class ImageProcessor:
     def __init__(self, processor_type, Width, Heigth, **kwargs):
         """
         Initialize the ImageProcessor
-        :param processor_type: must be either 'FastGaussian', 'AccurateGaussian', 'Peakfinder' or 'Linefit'
+        :param processor_type: must be a certain type
         """
         self.latest_frame = None
         self.Width = Width
@@ -35,6 +36,8 @@ class ImageProcessor:
             self.Processor = Linefit(**kwargs)
         elif processor_type  == "Dummy":
             self.Processor = Dummy(**kwargs)
+        elif processor_type == "WeightedPeakfinder":
+            self.Processor = WeightedPeakfinder(**kwargs)
         else:
             raise ValueError("processor_type does not exist")
 
