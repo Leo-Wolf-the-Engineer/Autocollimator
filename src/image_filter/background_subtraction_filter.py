@@ -25,7 +25,7 @@ class BackgroundSubtractionFilter(BaseFilter):
             # Square the image
             squared = cv2.multiply(float_image, float_image)
             # Divide by background
-            result = cv2.divide(squared, float(background))
+            result = cv2.divide(squared, float(background)+40)
             # Convert back to uint8
             return cv2.convertScaleAbs(result)
         else:

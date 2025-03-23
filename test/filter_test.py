@@ -27,10 +27,9 @@ def test_image_filters(video_path, frame_number=0, filter_configs=None):
             {"name": "Background", "type": "Background", "params": {"method": "square_and_divide"}},
             {"name": "Gaussian", "type": "Gaussian", "params": {"sigma": 1, "kernel_size": 19}},
             {"name": "Median", "type": "Median", "params": {"kernel_size": 5}},
-            {"name": "Morphological", "type": "Morphological", "params": {"operation": "opening", "kernel_size": 5}},
+            {"name": "Morphological", "type": "Morphological", "params": {"operation": "erosion", "kernel_size": 5}},
             {"name": "Fourier", "type": "Fourier", "params": {"cutoff": 0.5}}
         ]
-
     # Initialize camera with specified video
     camera = CameraManager("AVI", video_path=video_path)
     width, height = camera.get_image_size()
@@ -141,18 +140,23 @@ if __name__ == "__main__":
     # You can modify this or pass custom configs to the function
     filter_configs = [
         {"name": "Original", "type": None, "params": {}},
-        {"name": "Bilateral", "type": "Bilateral", "params": {"d": 9, "sigma_color": 75, "sigma_space": 75}},
+        {"name": "Background", "type": "Background", "params": {"method": "mean"}},
+        {"name": "Background", "type": "Background", "params": {"method": "median"}},
         {"name": "Background", "type": "Background", "params": {"method": "square_and_divide"}},
-        {"name": "Gaussian", "type": "Gaussian", "params": {"sigma": 1, "kernel_size": 3}},
-        {"name": "Gaussian", "type": "Gaussian", "params": {"sigma": 2, "kernel_size": 7}},
-        {"name": "Gaussian", "type": "Gaussian", "params": {"sigma": 3, "kernel_size": 11}},
-        {"name": "Gaussian", "type": "Gaussian", "params": {"sigma": 5, "kernel_size": 19}},
-        {"name": "Gaussian", "type": "Gaussian", "params": {"sigma": 7, "kernel_size": 25}},
-        {"name": "Gaussian", "type": "Gaussian", "params": {"sigma": 9, "kernel_size": 35}},
-        {"name": "Gaussian", "type": "Gaussian", "params": {"sigma": 11, "kernel_size": 51}},
-        {"name": "Median", "type": "Median", "params": {"kernel_size": 5}},
-        {"name": "Morphological", "type": "Morphological", "params": {"operation": "opening", "kernel_size": 5}},
-        {"name": "Fourier", "type": "Fourier", "params": {"cutoff": 0.5}}
+        {"name": "Bilateral", "type": "Bilateral", "params": {"d": 7, "sigma_color": 150, "sigma_space": 10}},
+        {"name": "Bilateral", "type": "Bilateral", "params": {"d": 9, "sigma_color": 75, "sigma_space": 25}},
+        {"name": "Bilateral", "type": "Bilateral", "params": {"d": 15, "sigma_color": 150, "sigma_space": 10}},
+        {"name": "Fourier", "type": "Fourier", "params": {"type": "lowpass", "cutoff": 0.05}},
+        #{"name": "Fourier", "type": "Fourier", "params": {"type": "highpass", "cutoff": 0.05}},
+        {"name": "Gaussian", "type": "Gaussian", "params": {"sigma": 2, "kernel_size": 9}},
+        {"name": "Median", "type": "Median", "params": {"kernel_size": 15}},
+        {"name": "Morphological", "type": "Morphological", "params": {"operation": "closing", "kernel_size": 15}},
+        {"name": "Morphological", "type": "Morphological", "params": {"operation": "dilation", "kernel_size": 15}},
+        {"name": "Morphological", "type": "Morphological", "params": {"operation": "erosion", "kernel_size": 5}},
+        {"name": "Morphological", "type": "Morphological", "params": {"operation": "erosion", "kernel_size": 11}},
+        {"name": "Morphological", "type": "Morphological", "params": {"operation": "gradient", "kernel_size": 25}},
+        {"name": "Morphological", "type": "Morphological", "params": {"operation": "opening", "kernel_size": 9}},
+
     ]
 
     test_image_filters(args.video, args.frame, filter_configs)
