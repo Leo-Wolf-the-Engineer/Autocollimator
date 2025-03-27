@@ -1,0 +1,49 @@
+Filter and Processor Stability Test Settings
+==========================================
+
+Test Date and Time: 2025-03-26 18:18:11
+
+Pixel to Arcsecond Conversion: 0.9241734825356914 arcseconds/pixel
+
+Filter Configurations:
+1. Type: None
+   Parameters: {}
+2. Type: Background
+   Parameters: {'method': 'mean'}
+3. Type: Background
+   Parameters: {'method': 'median'}
+4. Type: Background
+   Parameters: {'method': 'square_and_divide'}
+5. Type: Bilateral
+   Parameters: {'d': 7, 'sigma_color': 150, 'sigma_space': 10}
+6. Type: Bilateral
+   Parameters: {'d': 9, 'sigma_color': 75, 'sigma_space': 25}
+7. Type: Bilateral
+   Parameters: {'d': 15, 'sigma_color': 150, 'sigma_space': 10}
+8. Type: Fourier
+   Parameters: {'type': 'lowpass', 'cutoff': 0.05}
+9. Type: Fourier
+   Parameters: {'type': 'highpass', 'cutoff': 0.05}
+10. Type: Gaussian
+   Parameters: {'sigma': 2, 'kernel_size': 9}
+11. Type: Median
+   Parameters: {'kernel_size': 15}
+12. Type: Morphological
+   Parameters: {'operation': 'closing', 'kernel_size': 15}
+13. Type: Morphological
+   Parameters: {'operation': 'dilation', 'kernel_size': 15}
+14. Type: Morphological
+   Parameters: {'operation': 'erosion', 'kernel_size': 5}
+15. Type: Morphological
+   Parameters: {'operation': 'erosion', 'kernel_size': 11}
+16. Type: Morphological
+   Parameters: {'operation': 'gradient', 'kernel_size': 25}
+17. Type: Morphological
+   Parameters: {'operation': 'opening', 'kernel_size': 9}
+
+Processor Types:
+1. WeightedPeakfinder
+2. Peakfinder
+
+Camera Settings: Testing settings 1 through 9
+Frames per test: 50

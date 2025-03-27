@@ -1,0 +1,23 @@
+Filter and Processor Stability Test Settings
+==========================================
+
+Test Date and Time: 2025-03-26 18:36:43
+
+Pixel to Arcsecond Conversion: 0.9241734825356914 arcseconds/pixel
+
+Filter Configurations:
+1. Type: None
+   Parameters: {}
+2. Type: Morphological
+   Parameters: {'operation': 'erosion', 'kernel_size': 5}
+3. Type: Morphological
+   Parameters: {'operation': 'erosion', 'kernel_size': 11}
+4. Type: Morphological
+   Parameters: {'operation': 'gradient', 'kernel_size': 25}
+
+Processor Types:
+1. WeightedPeakfinder
+2. Peakfinder
+
+Camera Settings: Testing settings 1 through 9
+Frames per test: 50

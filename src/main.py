@@ -3,6 +3,7 @@ from PyQt5 import QtWidgets
 import threading
 import queue
 from image_aquisition import CameraManager
+from image_filter import ImageFilter
 from image_processing import ImageProcessor
 from win_live import AutocollimatorLiveWindowThread
 from data_storage import ContinousDataStorage
@@ -38,9 +39,12 @@ class FrameManager:
 # Initialize components
 frame_manager = FrameManager()
 frame_queue = queue.Queue(maxsize=5)  # Limit queue size to prevent memory issues
-camera = CameraManager("AVI")
+camera = CameraManager("AVI", video_path="C:/Users/Leo/Documents/GitHub/Autocollimator/test/Videos/6.avi")
 imagewidth, imageheight = camera.get_image_size()
-processor = ImageProcessor("AccurateGaussian", imagewidth, imageheight)
+#filter = ImageFilter("Bilateral", d=9, sigma_color=75, sigma_space=25)
+filter1 = ImageFilter("Background", method="median")
+filter2 = ImageFilter("Bilateral", d=13, sigma_color=50, sigma_space=10)
+processor = ImageProcessor("WeightedPeakfinder", imagewidth, imageheight)
 ContinousStorage = ContinousDataStorage(CONVERSION_FACTOR)
 straightness_data = POIDataStorage(CONVERSION_FACTOR)
 app = QtWidgets.QApplication([])
@@ -51,6 +55,8 @@ def frame_producer(stop_event):
     while not stop_event.is_set():
         try:
             frame = camera.retrieve_frame()
+            frame = filter1.apply(frame)  # Apply filter
+            frame = filter2.apply(frame)  # Apply filter
             frame_manager.update_frame(frame)  # Update display frame
 
             # Add to processing queue, non-blocking

@@ -1,0 +1,313 @@
+Filter and Processor Stability Test Results
+==========================================
+
+Combinations sorted by stability (lowest RMS first):
+6_Morphological_er11_WeightedPeakfinder: RMS=0.857 arcsec, Detection Rate=100.0%
+6_Morphological_cl_WeightedPeakfinder: RMS=0.866 arcsec, Detection Rate=100.0%
+6_Bilateral_d7_c150_s10_Peakfinder: RMS=0.881 arcsec, Detection Rate=100.0%
+6_Morphological_cl_Peakfinder: RMS=0.895 arcsec, Detection Rate=100.0%
+6_Fourier_lp_WeightedPeakfinder: RMS=0.916 arcsec, Detection Rate=100.0%
+6_Gaussian_WeightedPeakfinder: RMS=0.921 arcsec, Detection Rate=100.0%
+6_Morphological_er5_Peakfinder: RMS=0.938 arcsec, Detection Rate=100.0%
+6_NoFilter_WeightedPeakfinder: RMS=0.940 arcsec, Detection Rate=100.0%
+6_Background_median_WeightedPeakfinder: RMS=0.973 arcsec, Detection Rate=100.0%
+6_Bilateral_d15_c150_s10_Peakfinder: RMS=1.002 arcsec, Detection Rate=100.0%
+6_Bilateral_d7_c150_s10_WeightedPeakfinder: RMS=1.011 arcsec, Detection Rate=100.0%
+6_Bilateral_d15_c150_s10_WeightedPeakfinder: RMS=1.046 arcsec, Detection Rate=100.0%
+6_Morphological_op_WeightedPeakfinder: RMS=1.055 arcsec, Detection Rate=100.0%
+6_Fourier_hp_Peakfinder: RMS=1.060 arcsec, Detection Rate=100.0%
+6_Morphological_er5_WeightedPeakfinder: RMS=1.063 arcsec, Detection Rate=100.0%
+6_Background_mean_Peakfinder: RMS=1.066 arcsec, Detection Rate=100.0%
+6_Median_Peakfinder: RMS=1.145 arcsec, Detection Rate=100.0%
+6_Morphological_er25_Peakfinder: RMS=1.166 arcsec, Detection Rate=100.0%
+6_Background_sd_Peakfinder: RMS=1.282 arcsec, Detection Rate=100.0%
+6_Fourier_hp_WeightedPeakfinder: RMS=1.371 arcsec, Detection Rate=100.0%
+6_Gaussian_Peakfinder: RMS=1.481 arcsec, Detection Rate=100.0%
+6_Bilateral_d9_75_25_WeightedPeakfinder: RMS=1.545 arcsec, Detection Rate=100.0%
+6_Morphological_er25_WeightedPeakfinder: RMS=1.583 arcsec, Detection Rate=100.0%
+6_Morphological_op_Peakfinder: RMS=1.600 arcsec, Detection Rate=100.0%
+6_Bilateral_d9_75_25_Peakfinder: RMS=1.601 arcsec, Detection Rate=100.0%
+6_Morphological_di_WeightedPeakfinder: RMS=1.678 arcsec, Detection Rate=100.0%
+6_Morphological_di_Peakfinder: RMS=1.690 arcsec, Detection Rate=100.0%
+6_Background_median_Peakfinder: RMS=1.750 arcsec, Detection Rate=100.0%
+6_Background_mean_WeightedPeakfinder: RMS=1.767 arcsec, Detection Rate=100.0%
+6_Median_WeightedPeakfinder: RMS=1.780 arcsec, Detection Rate=100.0%
+6_Morphological_er11_Peakfinder: RMS=1.852 arcsec, Detection Rate=100.0%
+6_Fourier_lp_Peakfinder: RMS=1.857 arcsec, Detection Rate=100.0%
+6_NoFilter_Peakfinder: RMS=1.966 arcsec, Detection Rate=100.0%
+6_Background_sd_WeightedPeakfinder: RMS=1.971 arcsec, Detection Rate=100.0%
+
+
+Detailed Results:
+
+6_NoFilter_WeightedPeakfinder:
+  RMS X: 0.316 arcsec
+  RMS Y: 0.885 arcsec
+  RMS Combined: 0.940 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 4.89 ms
+  FPS: 204.3
+
+6_Background_mean_WeightedPeakfinder:
+  RMS X: 0.487 arcsec
+  RMS Y: 1.699 arcsec
+  RMS Combined: 1.767 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 7.34 ms
+  FPS: 136.2
+
+6_Background_median_WeightedPeakfinder:
+  RMS X: 0.426 arcsec
+  RMS Y: 0.874 arcsec
+  RMS Combined: 0.973 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 9.85 ms
+  FPS: 101.5
+
+6_Background_sd_WeightedPeakfinder:
+  RMS X: 0.885 arcsec
+  RMS Y: 1.761 arcsec
+  RMS Combined: 1.971 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 19.38 ms
+  FPS: 51.6
+
+6_Bilateral_d7_c150_s10_WeightedPeakfinder:
+  RMS X: 0.427 arcsec
+  RMS Y: 0.916 arcsec
+  RMS Combined: 1.011 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 10.48 ms
+  FPS: 95.5
+
+6_Bilateral_d9_75_25_WeightedPeakfinder:
+  RMS X: 0.489 arcsec
+  RMS Y: 1.466 arcsec
+  RMS Combined: 1.545 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 14.87 ms
+  FPS: 67.3
+
+6_Bilateral_d15_c150_s10_WeightedPeakfinder:
+  RMS X: 0.273 arcsec
+  RMS Y: 1.010 arcsec
+  RMS Combined: 1.046 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 33.15 ms
+  FPS: 30.2
+
+6_Fourier_lp_WeightedPeakfinder:
+  RMS X: 0.403 arcsec
+  RMS Y: 0.823 arcsec
+  RMS Combined: 0.916 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 160.00 ms
+  FPS: 6.3
+
+6_Fourier_hp_WeightedPeakfinder:
+  RMS X: 0.501 arcsec
+  RMS Y: 1.276 arcsec
+  RMS Combined: 1.371 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 106.67 ms
+  FPS: 9.4
+
+6_Gaussian_WeightedPeakfinder:
+  RMS X: 0.463 arcsec
+  RMS Y: 0.796 arcsec
+  RMS Combined: 0.921 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 5.22 ms
+  FPS: 191.4
+
+6_Median_WeightedPeakfinder:
+  RMS X: 0.517 arcsec
+  RMS Y: 1.703 arcsec
+  RMS Combined: 1.780 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 43.83 ms
+  FPS: 22.8
+
+6_Morphological_cl_WeightedPeakfinder:
+  RMS X: 0.435 arcsec
+  RMS Y: 0.748 arcsec
+  RMS Combined: 0.866 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 5.94 ms
+  FPS: 168.4
+
+6_Morphological_di_WeightedPeakfinder:
+  RMS X: 0.767 arcsec
+  RMS Y: 1.492 arcsec
+  RMS Combined: 1.678 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 5.42 ms
+  FPS: 184.5
+
+6_Morphological_er5_WeightedPeakfinder:
+  RMS X: 0.284 arcsec
+  RMS Y: 1.024 arcsec
+  RMS Combined: 1.063 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 5.16 ms
+  FPS: 193.9
+
+6_Morphological_er11_WeightedPeakfinder:
+  RMS X: 0.446 arcsec
+  RMS Y: 0.732 arcsec
+  RMS Combined: 0.857 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 5.26 ms
+  FPS: 190.0
+
+6_Morphological_er25_WeightedPeakfinder:
+  RMS X: 0.698 arcsec
+  RMS Y: 1.421 arcsec
+  RMS Combined: 1.583 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 8.62 ms
+  FPS: 116.0
+
+6_Morphological_op_WeightedPeakfinder:
+  RMS X: 0.573 arcsec
+  RMS Y: 0.885 arcsec
+  RMS Combined: 1.055 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 5.58 ms
+  FPS: 179.2
+
+6_NoFilter_Peakfinder:
+  RMS X: 0.527 arcsec
+  RMS Y: 1.894 arcsec
+  RMS Combined: 1.966 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 4.24 ms
+  FPS: 236.0
+
+6_Background_mean_Peakfinder:
+  RMS X: 0.459 arcsec
+  RMS Y: 0.962 arcsec
+  RMS Combined: 1.066 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 6.88 ms
+  FPS: 145.3
+
+6_Background_median_Peakfinder:
+  RMS X: 0.451 arcsec
+  RMS Y: 1.691 arcsec
+  RMS Combined: 1.750 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 9.04 ms
+  FPS: 110.6
+
+6_Background_sd_Peakfinder:
+  RMS X: 0.585 arcsec
+  RMS Y: 1.141 arcsec
+  RMS Combined: 1.282 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 18.56 ms
+  FPS: 53.9
+
+6_Bilateral_d7_c150_s10_Peakfinder:
+  RMS X: 0.419 arcsec
+  RMS Y: 0.774 arcsec
+  RMS Combined: 0.881 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 9.74 ms
+  FPS: 102.7
+
+6_Bilateral_d9_75_25_Peakfinder:
+  RMS X: 0.499 arcsec
+  RMS Y: 1.521 arcsec
+  RMS Combined: 1.601 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 13.47 ms
+  FPS: 74.2
+
+6_Bilateral_d15_c150_s10_Peakfinder:
+  RMS X: 0.451 arcsec
+  RMS Y: 0.895 arcsec
+  RMS Combined: 1.002 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 30.58 ms
+  FPS: 32.7
+
+6_Fourier_lp_Peakfinder:
+  RMS X: 0.526 arcsec
+  RMS Y: 1.781 arcsec
+  RMS Combined: 1.857 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 161.20 ms
+  FPS: 6.2
+
+6_Fourier_hp_Peakfinder:
+  RMS X: 0.430 arcsec
+  RMS Y: 0.968 arcsec
+  RMS Combined: 1.060 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 108.32 ms
+  FPS: 9.2
+
+6_Gaussian_Peakfinder:
+  RMS X: 0.475 arcsec
+  RMS Y: 1.402 arcsec
+  RMS Combined: 1.481 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 4.77 ms
+  FPS: 209.7
+
+6_Median_Peakfinder:
+  RMS X: 0.285 arcsec
+  RMS Y: 1.109 arcsec
+  RMS Combined: 1.145 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 42.35 ms
+  FPS: 23.6
+
+6_Morphological_cl_Peakfinder:
+  RMS X: 0.337 arcsec
+  RMS Y: 0.829 arcsec
+  RMS Combined: 0.895 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 5.53 ms
+  FPS: 180.8
+
+6_Morphological_di_Peakfinder:
+  RMS X: 0.692 arcsec
+  RMS Y: 1.542 arcsec
+  RMS Combined: 1.690 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 4.99 ms
+  FPS: 200.6
+
+6_Morphological_er5_Peakfinder:
+  RMS X: 0.416 arcsec
+  RMS Y: 0.841 arcsec
+  RMS Combined: 0.938 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 4.65 ms
+  FPS: 214.8
+
+6_Morphological_er11_Peakfinder:
+  RMS X: 0.724 arcsec
+  RMS Y: 1.705 arcsec
+  RMS Combined: 1.852 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 4.84 ms
+  FPS: 206.6
+
+6_Morphological_er25_Peakfinder:
+  RMS X: 0.279 arcsec
+  RMS Y: 1.132 arcsec
+  RMS Combined: 1.166 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 7.26 ms
+  FPS: 137.8
+
+6_Morphological_op_Peakfinder:
+  RMS X: 0.600 arcsec
+  RMS Y: 1.483 arcsec
+  RMS Combined: 1.600 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 5.16 ms
+  FPS: 193.8

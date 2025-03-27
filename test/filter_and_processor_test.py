@@ -1,14 +1,11 @@
 import numpy as np
 import logging
 from pathlib import Path
-import matplotlib.pyplot as plt
 from typing import Dict, List
 import pandas as pd
 import datetime
 import time
 import cv2
-from matplotlib import cm
-from mpl_toolkits.mplot3d import Axes3D
 
 # Import project modules
 from src.image_filter.image_filter import ImageFilter
@@ -49,13 +46,30 @@ def test_filter_processor_stability():
 
     # Define filter configurations
     filter_configs = [
-        {"type": None, "params": {}},  # No filter
-        #{"type": "Gaussian", "params": {"sigma": 1, "kernel_size": 19}},
-        #{"type": "Median", "params": {"kernel_size": 5}},
-        {"type": "Bilateral", "params": {"d": 9, "sigma_color": 75, "sigma_space": 75}},
-        {"type": "Background", "params": {"method": "square_and_divide"}},
-        {"type": "Morphological", "params": {"operation": "opening", "kernel_size": 5}},
-        #{"type": "Fourier", "params": {"cutoff": 0.5}}
+        {"name": "Original", "type": None, "params": {}},
+        {"name": "Background_mean", "type": "Background", "params": {"method": "mean"}},
+        {"name": "Background_median", "type": "Background", "params": {"method": "median"}},
+        {"name": "Background_sd", "type": "Background", "params": {"method": "square_and_divide"}},
+        {"name": "Bilateral_d7_c150_s10", "type": "Bilateral", "params": {"d": 7, "sigma_color": 150, "sigma_space": 10}},
+        {"name": "Bilateral_d9_75_25", "type": "Bilateral", "params": {"d": 9, "sigma_color": 75, "sigma_space": 25}},
+        {"name": "Bilateral_d15_c150_s10", "type": "Bilateral", "params": {"d": 15, "sigma_color": 150, "sigma_space": 10}},
+        {"name": "Fourier_lp", "type": "Fourier", "params": {"type": "lowpass", "cutoff": 0.05}},
+        {"name": "Fourier_hp", "type": "Fourier", "params": {"type": "highpass", "cutoff": 0.05}},
+        {"name": "Gaussian", "type": "Gaussian", "params": {"sigma": 2, "kernel_size": 9}},
+        {"name": "Median", "type": "Median", "params": {"kernel_size": 15}},
+        {"name": "Morphological_cl", "type": "Morphological", "params": {"operation": "closing", "kernel_size": 15}},
+        {"name": "Morphological_di", "type": "Morphological", "params": {"operation": "dilation", "kernel_size": 15}},
+        {"name": "Morphological_er5", "type": "Morphological", "params": {"operation": "erosion", "kernel_size": 5}},
+        {"name": "Morphological_er11", "type": "Morphological", "params": {"operation": "erosion", "kernel_size": 11}},
+        {"name": "Morphological_er25", "type": "Morphological", "params": {"operation": "gradient", "kernel_size": 25}},
+        {"name": "Morphological_op", "type": "Morphological", "params": {"operation": "opening", "kernel_size": 9}},
+    ]
+
+    filter_configs = [
+        {"name": "Original", "type": None, "params": {}},
+        {"name": "Morphological_er5", "type": "Morphological", "params": {"operation": "erosion", "kernel_size": 5}},
+        {"name": "Morphological_er11", "type": "Morphological", "params": {"operation": "erosion", "kernel_size": 11}},
+        {"name": "Morphological_er25", "type": "Morphological", "params": {"operation": "gradient", "kernel_size": 25}},
     ]
 
     # Define processor types
@@ -68,7 +82,7 @@ def test_filter_processor_stability():
     combined_results = {}
 
     # Test with camera settings 1-9
-    for camera_setting in [1, 2, 3, 6,7]:
+    for camera_setting in [6,]:
         logging.info(f"Testing with file {camera_setting}")
 
         # Initialize camera with specified setting
@@ -79,7 +93,7 @@ def test_filter_processor_stability():
         all_results = {}
 
         # Number of frames to test
-        num_frames = 50
+        num_frames = 250
 
         # Process all combinations
         for proc_type in processor_types:
@@ -88,12 +102,13 @@ def test_filter_processor_stability():
             for filter_config in filter_configs:
                 filter_type = filter_config["type"]
                 filter_params = filter_config["params"]
+                filter_name = filter_config["name"]
 
                 # Create filter (or None)
                 if filter_type:
                     # Fix: Use filter_type as keyword argument to avoid conflicts
                     image_filter = ImageFilter(filter_type=filter_type, **filter_params)
-                    combo_name = f"{filter_type}_{proc_type}"
+                    combo_name = f"{filter_name}_{proc_type}"
                 else:
                     image_filter = None
                     combo_name = f"NoFilter_{proc_type}"
@@ -177,7 +192,7 @@ def test_filter_processor_stability():
 
                     # Store results
                     all_results[combo_setting_name] = {
-                        "filter_type": filter_type if filter_type else "NoFilter",
+                        "filter_type": filter_name if filter_type else "NoFilter",
                         "processor_type": proc_type,
                         "camera_setting": camera_setting,
                         "x_rms": x_rms,
@@ -195,7 +210,7 @@ def test_filter_processor_stability():
                 else:
                     logging.warning(f"Insufficient data for {combo_setting_name}")
                     all_results[combo_setting_name] = {
-                        "filter_type": filter_type if filter_type else "NoFilter",
+                        "filter_type": filter_name if filter_type else "NoFilter",
                         "processor_type": proc_type,
                         "camera_setting": camera_setting,
                         "x_rms": float('nan'),
@@ -363,47 +378,83 @@ def generate_stability_report(results: Dict, output_dir: Path):
             if not combo_data.empty and not combo_data["FPS"].isna().all():
                 fps_values[i, j] = combo_data["FPS"].mean()
 
-    # Create figure with 2 subplots (side by side)
-    fig_3d = make_subplots(rows=1, cols=2,
-                          specs=[[{'type': 'surface'}, {'type': 'surface'}]],
-                          subplot_titles=('Stability (RMS)', 'Performance (FPS)'))
+    # Calculate RMS/FPS ratio matrix (efficiency metric - lower is better)
+    ratio_values = np.zeros((len(processor_types), len(filter_types)))
+    ratio_values.fill(np.nan)  # Fill with NaN to handle missing combinations
 
-    # Add RMS surface plot
+    # Calculate ratio for each filter-processor combo across camera settings
+    for i, processor in enumerate(processor_types):
+        for j, filter_type in enumerate(filter_types):
+            combo_data = df[(df["Filter"] == filter_type) & (df["Processor"] == processor)]
+            if not combo_data.empty and not combo_data["FPS"].isna().all() and not combo_data["Combined RMS"].isna().all():
+                # Calculate average ratio - lower is better (low RMS, high FPS)
+                ratios = combo_data["Combined RMS"] / combo_data["FPS"]
+                ratio_values[i, j] = ratios.mean()
+
+    # Create figure with 3 subplots (one per row)
+    fig_3d = make_subplots(rows=3, cols=1,
+                          specs=[[{'type': 'surface'}], 
+                                 [{'type': 'surface'}], 
+                                 [{'type': 'surface'}]],
+                          subplot_titles=('Efficiency (RMS/FPS) lower is better', 'Stability (RMS)', 'Performance (FPS)'))
+
+    # Add RMS/FPS ratio surface plot (first row)
     fig_3d.add_trace(
-        go.Surface(z=z_values, x=filter_types, y=processor_types, colorscale='Viridis',
-                   showscale=True, colorbar_x=0.4, name="RMS (arcsec)"),
+        go.Surface(z=ratio_values, x=filter_types, y=processor_types, colorscale='Turbo',
+                   showscale=True, 
+                   colorbar=dict(x=1.0, y=0.85, len=0.2, thickness=15, title="Ratio"),
+                   name="RMS/FPS Ratio"),
         row=1, col=1
     )
+    
+    # Add RMS surface plot (second row)
+    fig_3d.add_trace(
+        go.Surface(z=z_values, x=filter_types, y=processor_types, colorscale='Viridis',
+                   showscale=True, 
+                   colorbar=dict(x=1.0, y=0.5, len=0.2, thickness=15, title="arcsec"),
+                   name="RMS (arcsec)"),
+        row=2, col=1
+    )
 
-    # Add FPS surface plot
+    # Add FPS surface plot (third row)
     fig_3d.add_trace(
         go.Surface(z=fps_values, x=filter_types, y=processor_types, colorscale='Plasma',
-                   showscale=True, colorbar_x=0.95, name="FPS"),
-        row=1, col=2
+                   showscale=True, 
+                   colorbar=dict(x=1.0, y=0.15, len=0.2, thickness=15, title="FPS"),
+                   name="FPS"),
+        row=3, col=1
     )
 
     # Update layout
     fig_3d.update_layout(
-        title='3D Visualization of Stability (RMS) and Performance (FPS)',
+        title=f'3D Visualization of Efficiency, Stability and Performance, Sample Size={len(df)}',
         autosize=False,
-        width=1800,
-        height=800,
-        margin=dict(l=65, r=50, b=65, t=90)
+        width=1200,  
+        height=2000,  # Increased height for vertical arrangement
+        margin=dict(l=65, r=100, b=65, t=90)  # Increased right margin for colorbars
     )
 
-    # Update scene properties for both plots
+    # Update scene properties for the efficiency plot
+    fig_3d.update_scenes(
+        xaxis_title='Filter Type',
+        yaxis_title='Processor Type',
+        zaxis_title='RMS/FPS Ratio (lower is better)',
+        row=1, col=1
+    )
+
+    # Update scene properties for RMS plot
     fig_3d.update_scenes(
         xaxis_title='Filter Type',
         yaxis_title='Processor Type',
         zaxis_title='Average RMS (arcsec)',
-        row=1, col=1
+        row=2, col=1
     )
 
     fig_3d.update_scenes(
         xaxis_title='Filter Type',
         yaxis_title='Processor Type',
         zaxis_title='FPS',
-        row=1, col=2
+        row=3, col=1
     )
 
     # Save 3D plot as HTML

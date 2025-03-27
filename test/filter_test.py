@@ -24,10 +24,6 @@ def test_image_filters(video_path, frame_number=0, filter_configs=None):
         filter_configs = [
             {"name": "Original", "type": None, "params": {}},
             {"name": "Bilateral", "type": "Bilateral", "params": {"d": 9, "sigma_color": 75, "sigma_space": 75}},
-            {"name": "Background", "type": "Background", "params": {"method": "square_and_divide"}},
-            {"name": "Gaussian", "type": "Gaussian", "params": {"sigma": 1, "kernel_size": 19}},
-            {"name": "Median", "type": "Median", "params": {"kernel_size": 5}},
-            {"name": "Morphological", "type": "Morphological", "params": {"operation": "erosion", "kernel_size": 5}},
             {"name": "Fourier", "type": "Fourier", "params": {"cutoff": 0.5}}
         ]
     # Initialize camera with specified video

@@ -3,7 +3,7 @@ from scipy.signal import find_peaks
 
 
 class WeightedPeakfinder:
-    def __init__(self, window_size=20, distance=5, prominence=100):
+    def __init__(self, window_size=50, distance=5, prominence=100):
         self.window_size = window_size
         self.distance = distance
         self.prominence = prominence
@@ -26,8 +26,6 @@ class WeightedPeakfinder:
 
         # Calculate weighted average
         total_intensity = np.sum(window)
-        if total_intensity <= 1e-10:  # Avoid division by near-zero
-            return float(peak_pos)
 
         weighted_pos = np.sum(positions * window) / total_intensity
         return float(weighted_pos)

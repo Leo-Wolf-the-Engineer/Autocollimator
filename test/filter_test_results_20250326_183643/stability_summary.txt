@@ -1,0 +1,79 @@
+Filter and Processor Stability Test Results
+==========================================
+
+Combinations sorted by stability (lowest RMS first):
+6_NoFilter_WeightedPeakfinder: RMS=0.908 arcsec, Detection Rate=100.0%
+6_Morphological_er25_Peakfinder: RMS=0.954 arcsec, Detection Rate=100.0%
+6_Morphological_er11_WeightedPeakfinder: RMS=0.963 arcsec, Detection Rate=100.0%
+6_NoFilter_Peakfinder: RMS=1.000 arcsec, Detection Rate=100.0%
+6_Morphological_er11_Peakfinder: RMS=1.061 arcsec, Detection Rate=100.0%
+6_Morphological_er5_WeightedPeakfinder: RMS=1.636 arcsec, Detection Rate=100.0%
+6_Morphological_er5_Peakfinder: RMS=1.678 arcsec, Detection Rate=100.0%
+6_Morphological_er25_WeightedPeakfinder: RMS=1.762 arcsec, Detection Rate=100.0%
+
+
+Detailed Results:
+
+6_NoFilter_WeightedPeakfinder:
+  RMS X: 0.305 arcsec
+  RMS Y: 0.855 arcsec
+  RMS Combined: 0.908 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 4.95 ms
+  FPS: 202.0
+
+6_Morphological_er5_WeightedPeakfinder:
+  RMS X: 0.482 arcsec
+  RMS Y: 1.563 arcsec
+  RMS Combined: 1.636 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 5.24 ms
+  FPS: 191.0
+
+6_Morphological_er11_WeightedPeakfinder:
+  RMS X: 0.432 arcsec
+  RMS Y: 0.861 arcsec
+  RMS Combined: 0.963 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 5.37 ms
+  FPS: 186.2
+
+6_Morphological_er25_WeightedPeakfinder:
+  RMS X: 0.693 arcsec
+  RMS Y: 1.620 arcsec
+  RMS Combined: 1.762 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 8.72 ms
+  FPS: 114.7
+
+6_NoFilter_Peakfinder:
+  RMS X: 0.461 arcsec
+  RMS Y: 0.887 arcsec
+  RMS Combined: 1.000 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 4.30 ms
+  FPS: 232.6
+
+6_Morphological_er5_Peakfinder:
+  RMS X: 0.523 arcsec
+  RMS Y: 1.594 arcsec
+  RMS Combined: 1.678 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 4.74 ms
+  FPS: 211.0
+
+6_Morphological_er11_Peakfinder:
+  RMS X: 0.435 arcsec
+  RMS Y: 0.968 arcsec
+  RMS Combined: 1.061 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 4.85 ms
+  FPS: 206.1
+
+6_Morphological_er25_Peakfinder:
+  RMS X: 0.722 arcsec
+  RMS Y: 0.624 arcsec
+  RMS Combined: 0.954 arcsec
+  Detection Rate: 100.0%
+  Avg Processing Time: 7.28 ms
+  FPS: 137.4
