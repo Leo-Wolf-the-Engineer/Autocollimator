@@ -26,20 +26,21 @@ class ImageProcessor:
         self.Width = Width
         self.Heigth = Heigth
 
-        if processor_type == "FastGaussian":
-            self.Processor = FastGaussian(**kwargs)
-        elif processor_type == "AccurateGaussian":
-            self.Processor = AccurateGaussian(**kwargs)
-        elif processor_type == "Peakfinder":
-            self.Processor = Peakfinder(**kwargs)
-        elif processor_type == "Linefit":
-            self.Processor = Linefit(**kwargs)
-        elif processor_type  == "Dummy":
-            self.Processor = Dummy(**kwargs)
-        elif processor_type == "WeightedPeakfinder":
-            self.Processor = WeightedPeakfinder(**kwargs)
-        else:
+        # Use dictionary-based processor selection for faster lookup
+        processors = {
+            "FastGaussian": FastGaussian,
+            "AccurateGaussian": AccurateGaussian,
+            "Peakfinder": Peakfinder,
+            "Linefit": Linefit,
+            "Dummy": Dummy,
+            "WeightedPeakfinder": WeightedPeakfinder
+        }
+        
+        processor_class = processors.get(processor_type)
+        if processor_class is None:
             raise ValueError("processor_type does not exist")
+        
+        self.Processor = processor_class(**kwargs)
 
     def process_frame(self, frame):
         """
@@ -50,30 +51,31 @@ class ImageProcessor:
         """
         values_X, values_Y = self.Processor.process_frame(frame)
 
-        # Ensure values_X and values_Y are iterable
-        if not isinstance(values_X, (list, np.ndarray)):
-            values_X = [values_X]
-        if not isinstance(values_Y, (list, np.ndarray)):
-            values_Y = [values_Y]
+        # Convert to numpy arrays if not already
+        values_X = np.asarray(values_X, dtype=float)
+        values_Y = np.asarray(values_Y, dtype=float)
+        
+        # Ensure arrays are at least 1D
+        if values_X.ndim == 0:
+            values_X = np.array([values_X])
+        if values_Y.ndim == 0:
+            values_Y = np.array([values_Y])
 
-        # Filter invalid values efficiently
-        valid_indices = []
-        for i, (x, y) in enumerate(zip(values_X, values_Y)):
-            if (not np.isnan(x) and not np.isnan(y) and
-                0 <= x < self.Width and 0 <= y < self.Heigth):
-                valid_indices.append(i)
+        # Create mask for valid values - vectorized operation
+        valid_mask = ~(np.isnan(values_X) | np.isnan(values_Y) | 
+                      (values_X < 0) | (values_X >= self.Width) | 
+                      (values_Y < 0) | (values_Y >= self.Heigth))
+        
+        # Extract only valid values using mask
+        values_X = values_X[valid_mask]
+        values_Y = values_Y[valid_mask]
 
-        # Extract only valid values
-        if len(valid_indices) < len(values_X):
-            values_X = [values_X[i] for i in valid_indices]
-            values_Y = [values_Y[i] for i in valid_indices]
-
-        # Validate that both lists have the same length
+        # Validate that both arrays have the same length
         if len(values_X) != len(values_Y):
             raise ValueError("X and Y values must have the same length")
 
-        # Convert to arrays and center
-        values_X = np.array(values_X) - self.Width / 2
-        values_Y = np.array(values_Y) - self.Heigth / 2
+        # Center values (in-place operation)
+        values_X -= self.Width / 2
+        values_Y -= self.Heigth / 2
 
         return values_X, values_Y
