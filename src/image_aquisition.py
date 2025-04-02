@@ -4,15 +4,27 @@ from pyqtgraph.Qt import QtCore, QtWidgets
 import numpy as np
 import cv2
 import time
+import threading
+from collections import deque
+from queue import Queue, Empty
 
 class CameraManager:
     """
     CameraManager class to manage the available camera types
     camera_type: str
-        The type of camera to use. Must be either 'Basler' or 'USB'
+        The type of camera to use. Must be either 'Basler', 'USB', or 'AVI'
     """
-    def __init__(self, camera_type='Basler', **kwargs) -> None:
+    def __init__(self, camera_type='Basler', buffer_size=10, threaded=True, **kwargs) -> None:
         self.camera = None
+        self.buffer_size = buffer_size
+        self.threaded = threaded
+        self.frame_buffer = deque(maxlen=buffer_size)
+        self.frame_counter = 0
+        self.last_frame = None
+        self.lock = threading.RLock()
+        self._image_size = None
+        self._running = False
+        self._thread = None
 
         if camera_type == "Basler":
             self.camera = BaslerCamera(**kwargs)
@@ -22,35 +34,96 @@ class CameraManager:
             self.camera = AVIReader(**kwargs)
         else:
             raise ValueError("camera_type does not exist")
+            
+        # Cache the image size
+        self._image_size = self.camera.get_image_size()
+        
+        # Start the background thread if requested
+        if self.threaded:
+            self._start_thread()
+
+    def _start_thread(self):
+        """Start background thread for continuous frame grabbing"""
+        if not self._running:
+            self._running = True
+            self._thread = threading.Thread(target=self._grab_loop, daemon=True)
+            self._thread.start()
+
+    def _grab_loop(self):
+        """Background thread function to continuously grab frames"""
+        while self._running:
+            try:
+                # Get frame from camera
+                frame = self.camera.retrieve_frame()
+                
+                # Convert to grayscale if needed (using faster method)
+                if frame.ndim == 3:
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                
+                # Add to buffer
+                with self.lock:
+                    self.frame_buffer.append(frame)
+                    self.last_frame = frame
+                    self.frame_counter += 1
+                
+                # Small sleep to avoid CPU overload
+                time.sleep(0.001)
+            except Exception:
+                # Just continue on error, don't raise
+                time.sleep(0.01)
+                continue
 
     def get_image_size(self) -> tuple:
         """
-        Get the image size of the camera
-        :return: tuple
+        Get the image size of the camera (cached for performance)
+        :return: tuple (width, height)
         """
-        if self.camera is not None:
-            return self.camera.get_image_size()
-        else:
-            raise Exception("No camera initialized")
+        return self._image_size
 
     def retrieve_frame(self) -> np.ndarray:
         """
-        Retrieve a frame from the camera
-        collapes RGB to grayscale if necessary
-        :return: np.ndarray
+        Retrieve a frame from the camera - optimized with buffer
+        :return: np.ndarray grayscale image
         """
+        if self.threaded:
+            with self.lock:
+                if self.last_frame is not None:
+                    return self.last_frame.copy()
+                elif len(self.frame_buffer) > 0:
+                    return self.frame_buffer[-1].copy()
+        
+        # Fallback to direct capture if not threaded or buffer empty
         try:
             frame = self.camera.retrieve_frame()
-            if len(frame.shape) == 3:
+            if frame.ndim == 3:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             return frame
         except Exception as e:
+            # Return last valid frame on error if available
+            if self.last_frame is not None:
+                return self.last_frame.copy()
             raise Exception(f"Failed to retrieve frame: {str(e)}")
+
+    def get_latest_frames(self, n=1):
+        """
+        Get the n latest frames from buffer
+        :param n: number of frames to retrieve
+        :return: list of frames
+        """
+        with self.lock:
+            return list(self.frame_buffer)[-n:] if len(self.frame_buffer) > 0 else []
 
     def close(self) -> None:
         """
-        Close the camera
+        Close the camera and stop background thread
         """
+        # Stop background thread if running
+        if self.threaded and self._running:
+            self._running = False
+            if self._thread:
+                self._thread.join(timeout=1.0)
+        
+        # Close camera
         if self.camera is not None:
             self.camera.close()
         else:
@@ -115,7 +188,7 @@ class BaslerCamera:
 
 class AVIReader:
     """
-    AVIReader class to read frames from an AVI file
+    AVIReader class to read frames from an AVI file, optimized for maximum speed
     """
     def __init__(self, video_path: str):
         """
@@ -123,24 +196,52 @@ class AVIReader:
         :param video_path: str
         """
         self.video_path = video_path
-        self.cap = cv2.VideoCapture(self.video_path)
+
+        # Try to use hardware acceleration via FFMPEG backend
+        self.cap = cv2.VideoCapture(self.video_path, cv2.CAP_FFMPEG)
         if not self.cap.isOpened():
-            raise ValueError(f"Cannot open video file: {video_path}")
-        self.fps = self.cap.get(cv2.CAP_PROP_FPS)
-        self.frame_interval = 1.0 / self.fps
+            # Fallback to default backend if FFMPEG is not available
+            self.cap = cv2.VideoCapture(self.video_path)
+            print("Falling back to default backend for video capture.")
+            if not self.cap.isOpened():
+                raise ValueError(f"Cannot open video file: {video_path}")
+
+        # Cache image dimensions for faster access
+        self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        # Set optimal buffer size in OpenCV
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 10)
+
+        # Determine if video is color to optimize conversion
+        ret, test_frame = self.cap.read()
+        if ret:
+            self.is_color = len(test_frame.shape) == 3
+            # Reset position
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        else:
+            raise ValueError(f"Cannot read frames from video: {video_path}")
 
     def retrieve_frame(self):
         ret, frame = self.cap.read()
         #time.sleep(0.02)
         if not ret:
-            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Restart the video
+            # Reset to beginning if end of video is reached
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             ret, frame = self.cap.read()
+            if not ret:
+                # Return black frame if still can't read
+                return np.zeros((self.height, self.width), dtype=np.uint8)
+
+        # Process frame if it's color (faster than cv2.cvtColor)
+        if self.is_color:
+            return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         return frame
 
     def get_image_size(self):
-        width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        return width, height
+        # Return cached dimensions
+        return self.width, self.height
+
     def close(self):
         self.cap.release()
 
