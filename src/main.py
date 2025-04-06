@@ -44,7 +44,8 @@ class FrameManager:
 frame_manager = FrameManager()
 # Increased queue size for better throughput
 frame_queue = queue.Queue(maxsize=10)
-camera = CameraManager("AVI", video_path="C:/Users/Leo/Documents/GitHub/Autocollimator/test/Videos/6.avi")
+#camera = CameraManager("AVI", video_path="C:/Users/Leo/Documents/GitHub/Autocollimator/test/Videos/6.avi")
+camera = CameraManager("Basler", ExposureMode='Standard', Exposuretime=None)
 imagewidth, imageheight = camera.get_image_size()
 filter1 = ImageFilter("Background", method="median")
 processor = ImageProcessor("WeightedPeakfinder", imagewidth, imageheight)

@@ -3,7 +3,7 @@ from scipy.signal import find_peaks
 
 
 class WeightedPeakfinder:
-    def __init__(self, window_size=50, distance=5, prominence=100):
+    def __init__(self, window_size=50, distance=25, prominence=5000):
         self.window_size = window_size
         self.distance = distance
         self.prominence = prominence
