@@ -227,13 +227,28 @@ class AutocollimatorLiveWindow:
                             self.x_history_plot.setData(self.plot_time_data[:data_len], self.plot_x_data[:data_len])
                             self.y_history_plot.setData(self.plot_time_data[:data_len], self.plot_y_data[:data_len])
                             updated = True
+
+                            # Update FPS using timestamp data if enough data is available
+                            if current_time - self.last_fps_update >= 2.0 and data_len >= 2:
+                                # Calculate time differences between consecutive frames in seconds
+                                # Convert from minutes (60e9 / 60 = 1e9) to seconds by multiplying with 60
+                                time_diffs = np.diff(self.plot_time_data[:data_len]) * 60
+                                # Remove any zero values to avoid division by zero
+                                non_zero_diffs = time_diffs[time_diffs > 0]
+                                if len(non_zero_diffs) > 0:
+                                    # Calculate instantaneous FPS values
+                                    inst_fps = 1.0 / non_zero_diffs
+                                    # Use recent FPS values (last 10 or fewer)
+                                    recent_fps = inst_fps[-min(10, len(inst_fps)):].mean()
+                                    self.fps_display.setText(f"FPS: {recent_fps:.1f}")
+                                    self.last_fps_update = current_time
+
                 except Exception as e:
                     logging.error(f"Error updating peak plots: {e}", exc_info=False)
 
-        # Update FPS display periodically
-        if current_time - self.last_fps_update >= 5.0:  # Update once per second
-            fps = self.frame_count / (current_time - self.last_fps_update)
-            self.fps_display.setText(f"FPS: {fps:.1f}")
+        # Update FPS display periodically - fallback if timestamp-based calculation fails
+        if current_time - self.last_fps_update >= 2.0:  # Update once per second
+            self.fps_display.setText(f"FPS: {self.frame_count / (current_time - self.last_fps_update):.1f}")
             self.frame_count = 0
             self.last_fps_update = current_time
 
