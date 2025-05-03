@@ -10,7 +10,6 @@ from data_storage import ContinousDataStorage
 from data_storage import POIDataStorage
 import logging
 import time
-import cv2
 
 # Configure logging with location information
 logging.basicConfig(
@@ -45,10 +44,11 @@ frame_manager = FrameManager()
 # Increased queue size for better throughput
 frame_queue = queue.Queue(maxsize=10)
 #camera = CameraManager("AVI", video_path="C:/Users/Leo/Documents/GitHub/Autocollimator/test/Videos/6.avi")
-camera = CameraManager("Basler", ExposureMode='Standard', Exposuretime=None)
+camera = CameraManager("Basler", ExposureMode='Standard', Exposuretime=500) #UltraShort / Standard
 imagewidth, imageheight = camera.get_image_size()
-filter1 = ImageFilter("Background", method="median")
+#filter1 = ImageFilter("Background", method="median")
 processor = ImageProcessor("WeightedPeakfinder", imagewidth, imageheight)
+#processor = ImageProcessor("Peakfinder", imagewidth, imageheight)
 ContinousStorage = ContinousDataStorage(CONVERSION_FACTOR)
 straightness_data = POIDataStorage(CONVERSION_FACTOR)
 app = QtWidgets.QApplication([])

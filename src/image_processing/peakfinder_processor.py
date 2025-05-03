@@ -29,8 +29,8 @@ class Peakfinder:
             return np.nan, np.nan
 
         # Optimized peak finding parameters
-        peaks_x, _ = find_peaks(intensity_x, distance=5, prominence=5000, wlen=20)
-        peaks_y, _ = find_peaks(intensity_y, distance=5, prominence=5000, wlen=20)
+        peaks_x, _ = find_peaks(intensity_x, distance=5, prominence=5000, wlen=50)
+        peaks_y, _ = find_peaks(intensity_y, distance=5, prominence=5000, wlen=50)
 
         if len(peaks_x) == 0 or len(peaks_y) == 0:
             return np.nan, np.nan

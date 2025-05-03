@@ -1,9 +1,10 @@
 import numpy as np
 from scipy.signal import find_peaks
+import logging
 
 
 class WeightedPeakfinder:
-    def __init__(self, window_size=50, distance=25, prominence=5000):
+    def __init__(self, window_size=25, distance=25, prominence=5000):
         self.window_size = window_size
         self.distance = distance
         self.prominence = prominence
@@ -14,6 +15,7 @@ class WeightedPeakfinder:
 
     def _find_weighted_peak(self, intensity, peak_pos):
         """Calculate weighted average around peak for subpixel accuracy"""
+        #TODO: check if this is working correctly
         half_window = self.window_size // 2
 
         # Handle boundary conditions
@@ -31,10 +33,7 @@ class WeightedPeakfinder:
         return float(weighted_pos)
 
     def process_frame(self, frame, debug=False):
-        import time  # Import time here to minimize overhead when not used
-
-        start_time = time.time()
-
+        """Process the frame to find peaks with subpixel accuracy"""
         # Cache intensity projections for repeated calls with same frame
         if self.latest_frame is None or not np.array_equal(self.latest_frame, frame):
             self.latest_frame = frame.copy()
@@ -55,10 +54,6 @@ class WeightedPeakfinder:
         # Refine with weighted average for subpixel accuracy
         refined_x = self._find_weighted_peak(self.last_intensity_x, peak_x)
         refined_y = self._find_weighted_peak(self.last_intensity_y, peak_y)
-
-        end_time = time.time()
-        elapsed_time_ms = (end_time - start_time) * 1000
-        logging.info(f"process_frame execution time: {elapsed_time_ms:.2f} ms")
 
 
         # Debug visualization
