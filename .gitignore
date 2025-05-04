@@ -10,3 +10,5 @@ src/__pycache__/plot_module.cpython-310.pyc
 src/__pycache__/utils.cpython-310.pyc
 src/__pycache__/image_aquisition.cpython-310.pyc
 /src/__pycache__
+/src/image_filter/__pycache__
+/src/image_processing/__pycache__

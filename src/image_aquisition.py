@@ -6,7 +6,6 @@ import cv2
 import time
 import threading
 from collections import deque
-from queue import Queue, Empty
 
 class CameraManager:
     """
@@ -133,7 +132,7 @@ class BaslerCamera:
     """
     BaslerCamera class to manage the Basler Ace 2 camera
     """
-    def __init__(self, Width=1936, Height=1216, PixelFormat='Mono8', ExposureMode='Standard', Exposuretime=None) -> None:
+    def __init__(self, Width=1936, Height=1216, PixelFormat='Mono8', ExposureMode='Standard', Exposuretime=None, gamma=1 ) -> None:
         """
         Initialize the Basler Ace 2 camera
         Set all setting to smart values
@@ -147,6 +146,21 @@ class BaslerCamera:
         self.camera.Width.SetValue(Width)
         self.camera.Height.SetValue(Height)
         self.camera.BslExposureTimeMode.SetValue(ExposureMode) #UltraShort / Standard
+        self.camera.Gamma.SetValue(gamma)
+
+        self.camera.BslSensorBitDepth.SetValue('Bpp8')  # 8 / 10 / 12
+        self.camera.BslLightSourcePreset.SetValue('Off')  # Daylight / Fluorescent / Tungsten
+        self.camera.BalanceWhiteAuto.SetValue('Off')
+
+        self.camera.BalanceRatioSelector.SetValue('Red')
+        self.camera.BalanceRatio.SetValue(1.0)  # Default 1.0
+        self.camera.BalanceRatioSelector.SetValue('Green')
+        self.camera.BalanceRatio.SetValue(1.0)  # Default 1.2
+        self.camera.BalanceRatioSelector.SetValue('Blue')
+        self.camera.BalanceRatio.SetValue(1.0)  # Default 13
+
+
+
         if Exposuretime is not None:
             self.camera.ExposureTime.SetValue(Exposuretime)
 
@@ -245,50 +259,11 @@ class AVIReader:
     def close(self):
         self.cap.release()
 
-def testing():
-    # Initialize CameraManager with "Basler"
-    camera_manager = CameraManager("AVI")
-
-    # Initialize PyQtGraph application
-    app = QtWidgets.QApplication([])
-
-    # Create a window with a layout
-    win = QtWidgets.QMainWindow()
-    win.setWindowTitle("Camera Stream")
-    central_widget = QtWidgets.QWidget()
-    win.setCentralWidget(central_widget)
-    layout = QtWidgets.QVBoxLayout()
-    central_widget.setLayout(layout)
-
-    # Create a plot widget for the camera stream
-    plot_widget = pg.ImageView()
-    layout.addWidget(plot_widget)
-
-    # Show the window
-    win.show()
-
-    def update():
-        # Retrieve a frame
-        frame = camera_manager.retrieve_frame()
-
-        # Update the plot with the new frame
-        plot_widget.setImage(frame.T)
-
-    # Set up a timer to update the plot periodically
-    timer = QtCore.QTimer()
-    timer.timeout.connect(update)
-    timer.start(50)  # Update every 50 ms
-
-    # Start the PyQtGraph application
-    app.exec_()
-
-    # Close the camera when the application is closed
-    camera_manager.close()
 
 def captureIntoVideo():
     # Captures the video from the camera and saves it to a file
     # Initialize CameraManager with "Basler"
-    camera_manager = CameraManager("Basler")
+    camera_manager = CameraManager("Basler", ExposureMode='Standard', Exposuretime=6000, gamma=1.00)
 
     # Initialize the video writer
     fourcc = cv2.VideoWriter_fourcc(*'XVID')

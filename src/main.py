@@ -22,6 +22,7 @@ logging.basicConfig(
 PIXEL_PITCH = 3.45e-6  # in meters
 FOCAL_LENGTH = 0.385  # in meters
 CONVERSION_FACTOR = PIXEL_PITCH / (2 * FOCAL_LENGTH) * 180 / np.pi * 3600
+print(f"Conversion factor: {CONVERSION_FACTOR} arcseconds/pixel")
 
 # Improved thread-safe frame management with minimal locking
 class FrameManager:
@@ -44,13 +45,13 @@ frame_manager = FrameManager()
 # Increased queue size for better throughput
 frame_queue = queue.Queue(maxsize=10)
 #camera = CameraManager("AVI", video_path="C:/Users/Leo/Documents/GitHub/Autocollimator/test/Videos/6.avi")
-camera = CameraManager("Basler", ExposureMode='Standard', Exposuretime=500) #UltraShort / Standard
+camera = CameraManager("Basler", ExposureMode='Standard', Exposuretime=10000, gamma=1.00) #UltraShort / Standard
 imagewidth, imageheight = camera.get_image_size()
-#filter1 = ImageFilter("Background", method="median")
-processor = ImageProcessor("WeightedPeakfinder", imagewidth, imageheight)
+filter1 = ImageFilter("Background", method="fixed", value=10)
+processor = ImageProcessor("WeightedPeakfinder", imagewidth, imageheight, window_size=50, distance=25, prominence=5000)
 #processor = ImageProcessor("Peakfinder", imagewidth, imageheight)
 ContinousStorage = ContinousDataStorage(CONVERSION_FACTOR)
-straightness_data = POIDataStorage(CONVERSION_FACTOR)
+#straightness_data = POIDataStorage(CONVERSION_FACTOR)
 app = QtWidgets.QApplication([])
 
 # Frame buffer pool to avoid frequent memory allocations
@@ -87,6 +88,7 @@ def frame_producer(stop_event):
             
             # Get a frame buffer from the pool
             frame = camera.retrieve_frame()
+            frame = filter1.apply(frame)  # Apply background filter
             
             if frame is None:
                 time.sleep(0.001)  # Short sleep to avoid CPU spinning

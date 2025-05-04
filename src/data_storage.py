@@ -13,7 +13,7 @@ logging.basicConfig(
 )
 
 class ContinousDataStorage:
-    def __init__(self, conversion_factor, max_points=100000):
+    def __init__(self, conversion_factor, max_points=1000):
         self.conversion_factor = conversion_factor
         self.microrad_conv_factor = conversion_factor * np.pi * 1e3 / 648
         self.max_points = max_points

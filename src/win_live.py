@@ -187,7 +187,7 @@ class AutocollimatorLiveWindow:
 
         # Update peak history plots (only if we have data and not too frequently)
         current_time = time.time()
-        if current_time - self.last_update_time >= 0.05:  # Max 10 history updates per second
+        if current_time - self.last_update_time >= 0.04:  # Max 10 history updates per second
             self.last_update_time = current_time
 
             if self.data_storage:

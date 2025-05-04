@@ -15,7 +15,6 @@ class WeightedPeakfinder:
 
     def _find_weighted_peak(self, intensity, peak_pos):
         """Calculate weighted average around peak for subpixel accuracy"""
-        #TODO: check if this is working correctly
         half_window = self.window_size // 2
 
         # Handle boundary conditions
@@ -25,11 +24,12 @@ class WeightedPeakfinder:
         # Extract window around peak
         window = intensity[start:end]
         positions = np.arange(start, end)
+        positions = positions - peak_pos  # Center around peak position
 
         # Calculate weighted average
         total_intensity = np.sum(window)
 
-        weighted_pos = np.sum(positions * window) / total_intensity
+        weighted_pos = np.sum(positions * window) / total_intensity + peak_pos
         return float(weighted_pos)
 
     def process_frame(self, frame, debug=False):
