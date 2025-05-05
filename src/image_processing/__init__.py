@@ -1,10 +1,10 @@
 # Make processor classes available directly from the package
-from .fast_gaussian_processor import FastGaussian
-from .accurate_gaussian_processor import AccurateGaussian
-from .peakfinder_processor import Peakfinder
-from .linefit_processor import Linefit
-from .dummy_processor import Dummy
-from .weighted_peakfinder_processor import WeightedPeakfinder
+from .fast_gaussian import FastGaussian
+from .accurate_gaussian import AccurateGaussian
+from .peakfinder import Peakfinder
+from .linefit import Linefit
+from .dummy import Dummy
+from .weighted_peakfinder import WeightedPeakfinder
 
 # Import and expose the ImageProcessor class
 from .image_processing import ImageProcessor

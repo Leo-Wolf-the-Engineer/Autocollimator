@@ -148,7 +148,7 @@ class BaslerCamera:
         self.camera.BslExposureTimeMode.SetValue(ExposureMode) #UltraShort / Standard
         self.camera.Gamma.SetValue(gamma)
 
-        self.camera.BslSensorBitDepth.SetValue('Bpp8')  # 8 / 10 / 12
+        #self.camera.BslSensorBitDepth.SetValue('Bpp8')  # 8 / 10 / 12
         self.camera.BslLightSourcePreset.SetValue('Off')  # Daylight / Fluorescent / Tungsten
         self.camera.BalanceWhiteAuto.SetValue('Off')
 

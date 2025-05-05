@@ -2,12 +2,13 @@ import numpy as np
 import logging
 
 # Import processor classes
-from image_processing.fast_gaussian_processor import FastGaussian
-from image_processing.accurate_gaussian_processor import AccurateGaussian
-from image_processing.peakfinder_processor import Peakfinder
-from image_processing.linefit_processor import Linefit
-from image_processing.dummy_processor import Dummy
-from image_processing.weighted_peakfinder_processor import WeightedPeakfinder
+from image_processing.fast_gaussian import FastGaussian
+from image_processing.accurate_gaussian import AccurateGaussian
+from image_processing.peakfinder import Peakfinder
+from image_processing.linefit import Linefit
+from image_processing.dummy import Dummy
+from image_processing.weighted_peakfinder import WeightedPeakfinder
+from image_processing.peakfinder_quadratic import PeakfinderQuadratic as PeakfinderQuadratic
 
 # Configure logging with location information
 logging.basicConfig(
@@ -33,7 +34,8 @@ class ImageProcessor:
             "Peakfinder": Peakfinder,
             "Linefit": Linefit,
             "Dummy": Dummy,
-            "WeightedPeakfinder": WeightedPeakfinder
+            "WeightedPeakfinder": WeightedPeakfinder,
+            "PeakfinderQuadratic": PeakfinderQuadratic
         }
         
         processor_class = processors.get(processor_type)

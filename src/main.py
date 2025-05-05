@@ -47,9 +47,9 @@ frame_queue = queue.Queue(maxsize=10)
 #camera = CameraManager("AVI", video_path="C:/Users/Leo/Documents/GitHub/Autocollimator/test/Videos/6.avi")
 camera = CameraManager("Basler", ExposureMode='Standard', Exposuretime=10000, gamma=1.00) #UltraShort / Standard
 imagewidth, imageheight = camera.get_image_size()
-filter1 = ImageFilter("Background", method="fixed", value=10)
-processor = ImageProcessor("WeightedPeakfinder", imagewidth, imageheight, window_size=50, distance=25, prominence=5000)
-#processor = ImageProcessor("Peakfinder", imagewidth, imageheight)
+filter1 = ImageFilter("Background", method="fixed", value=150)
+#processor = ImageProcessor("WeightedPeakfinder", imagewidth, imageheight, window_size=50, distance=25, prominence=5000)
+processor = ImageProcessor("PeakfinderQuadratic", imagewidth, imageheight, width=7, degree=2) #13 ist gut
 ContinousStorage = ContinousDataStorage(CONVERSION_FACTOR)
 #straightness_data = POIDataStorage(CONVERSION_FACTOR)
 app = QtWidgets.QApplication([])

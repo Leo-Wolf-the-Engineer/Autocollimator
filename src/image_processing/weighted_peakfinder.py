@@ -62,19 +62,3 @@ class WeightedPeakfinder:
 
         return refined_x, refined_y
 
-    def _visualize_peaks(self, frame, peak_x, peak_y, refined_x, refined_y):
-        """Debug visualization function"""
-        import cv2
-
-        # Create a copy of the frame to draw on
-        marked_frame = cv2.cvtColor(frame.copy(), cv2.COLOR_GRAY2BGR)
-
-        # Draw initial peak (green)
-        cv2.circle(marked_frame, (int(peak_x), int(peak_y)), 7, (0, 255, 0), 1)
-
-        # Draw refined peak (red)
-        cv2.circle(marked_frame, (int(refined_x), int(refined_y)), 5, (0, 0, 255), -1)
-
-        # Show the result
-        cv2.imshow('AccuratePeakfinder Debug', marked_frame)
-        cv2.waitKey(1)  # Non-blocking display
