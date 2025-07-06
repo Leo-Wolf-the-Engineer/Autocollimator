@@ -1,0 +1,16 @@
+
+.idea/Autocollimator.iml
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+src/__pycache__/camera_module.cpython-310.pyc
+src/__pycache__/measurement_module.cpython-310.pyc
+src/__pycache__/plot_module.cpython-310.pyc
+src/__pycache__/utils.cpython-310.pyc
+src/__pycache__/image_aquisition.cpython-310.pyc
+/src/__pycache__
+/src/image_filter/__pycache__
+/src/image_processing/__pycache__
+src/image_filter/__pycache__/background_subtraction_filter.cpython-310.pyc
+src/image_filter/__pycache__/background_subtraction_filter.cpython-310.pyc

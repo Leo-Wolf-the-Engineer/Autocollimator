@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QScreen
 from datetime import datetime
+import numpy as np
 import sys
 
 # Save the whole window as an image

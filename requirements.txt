@@ -1,6 +1,6 @@
 numpy
-opencv-python
-pypylon
-scipy
 pyqtgraph
 PyQt5
+scipy
+opencv-python
+pypylon
